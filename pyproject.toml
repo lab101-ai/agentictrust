@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "agentictrust"
+version = "0.0.1"
+description = "Observability, DevTool and Security Platfrom for AI Agents"
+authors = ["subramanya1997 <subramanyanagabhushan@gmail.com>"]
+license = "MIT License"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+requests = "^2.32.3"
+psutil = "^6.1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

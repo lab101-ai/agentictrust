@@ -1,6 +1,7 @@
-from flask import Blueprint, request, jsonify, current_app, render_template
+from flask import Blueprint, request, jsonify, current_app
 from app.models import Agent, IssuedToken, TaskAuditLog, Tool
 from app.utils import token_required
+from datetime import datetime
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
@@ -67,7 +68,6 @@ def search_tokens():
     if is_valid is not None:
         is_valid = is_valid.lower() == 'true'
         # Filter for valid tokens (not revoked and not expired)
-        from datetime import datetime
         if is_valid:
             query = query.filter(
                 (IssuedToken.is_revoked == False) & 
@@ -160,36 +160,31 @@ def get_task_chain(task_id):
         'task_details': task_details
     }), 200
 
-# UI routes for admin dashboard
-@admin_bp.route('/dashboard', methods=['GET'])
-def dashboard():
-    """Render the admin dashboard."""
-    # Get dashboard data
-    agents = Agent.query.all()
-    agents_count = len(agents)
-    
-    tokens = IssuedToken.query.all()
-    tokens_count = len(tokens)
-    
-    active_tokens = IssuedToken.query.filter_by(is_revoked=False).all()
-    active_tokens_count = len(active_tokens)
-    
-    logs = TaskAuditLog.query.order_by(TaskAuditLog.timestamp.desc()).limit(10).all()
-    
-    # Get tools data
-    tools = Tool.query.all()
-    tools_count = len(tools)
-    active_tools = Tool.query.filter_by(is_active=True).all()
-    active_tools_count = len(active_tools)
-    
-    # Render HTML template with data
-    return render_template('dashboard.html', 
-                          agents_count=agents_count,
-                          tokens_count=tokens_count,
-                          active_tokens_count=active_tokens_count,
-                          agents=agents,
-                          tokens=active_tokens,
-                          logs=logs,
-                          tools=tools,
-                          tools_count=tools_count,
-                          active_tools_count=active_tools_count) 
+@admin_bp.route('/stats/dashboard', methods=['GET'])
+def get_dashboard_stats():
+    """Get dashboard statistics."""
+    try:
+        # Count agents
+        agents_count = Agent.query.count()
+        
+        # Count tools
+        tools_count = Tool.query.count()
+        
+        # Count all tokens
+        tokens_count = IssuedToken.query.count()
+        
+        # Count active tokens (not expired, not revoked)
+        active_tokens_count = IssuedToken.query.filter(
+            (IssuedToken.is_revoked == False) & 
+            (IssuedToken.expires_at > datetime.utcnow())
+        ).count()
+        
+        return jsonify({
+            'agents_count': agents_count,
+            'tools_count': tools_count,
+            'tokens_count': tokens_count,
+            'active_tokens_count': active_tokens_count
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching dashboard stats: {str(e)}")
+        return jsonify({'error': 'Failed to fetch dashboard statistics'}), 500 

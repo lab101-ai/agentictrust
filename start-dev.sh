@@ -42,12 +42,12 @@ if [ "$START_BACKEND" = true ]; then
   echo "Starting Flask backend..."
   # Check if Poetry is installed
   if command -v poetry &> /dev/null; then
-    (cd . && poetry run python -m flask run --debug) &
+    (cd . && poetry run python -m flask run --debug --port=5001) &
     FLASK_PID=$!
   else
     # Fallback to venv if Poetry is not installed
     source .venv/bin/activate
-    (cd . && FLASK_ENV=development flask run) &
+    (cd . && FLASK_ENV=development flask run --port=5001) &
     FLASK_PID=$!
   fi
   

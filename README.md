@@ -1,35 +1,129 @@
-# AgenticTrust: OAuth for AI Agents
+# AgenticTrust API - OAuth 2.1 Implementation
 
-An implementation of the AgenticTrust OAuth framework for secure authentication and authorization of AI agents. This project provides a Flask-based OAuth server and a Python SDK for use with agent frameworks like CrewAI.
+This project implements a secure OAuth 2.1 authentication and authorization system for LLM-based agents.
 
 ## Features
 
-- Agent registration and management
-- OAuth token issuance with scope control
-- Parent-child token hierarchies for delegated tasks
-- Task context verification
-- Token introspection and revocation
-- Comprehensive audit logging
-- Admin dashboard
-- Python SDK for integration with AI agent frameworks
-- Structured logging with Loguru
+- **OAuth 2.1 compliance** with mandatory PKCE for all flows
+- **Authorization Code Flow** with PKCE for web and mobile apps
+- **Client Credentials Flow** with PKCE for machine-to-machine authentication
+- **Refresh Token** support with PKCE verification
+- **Dynamic Client Registration** support
+- **Authorization Server Metadata** endpoint
+- **Task-aware tokens** with parent-child lineage verification
+- **Scope inheritance** from parent to child tasks
 
-## Implementation Details
+## Authentication Flows
 
-This implementation follows the OAuth flows described in the [blog post](docs/blog.md), including:
+### Authorization Code Flow with PKCE
 
-1. Agent Registration Flow
-2. Basic Client Credentials Flow
-3. Parent-Child Agent Hierarchies
-4. Token Verification Process
-5. Token Introspection and Revocation
+1. Generate a code verifier and code challenge
+2. Request an authorization code with the code challenge
+3. Exchange the authorization code with the code verifier for tokens
+
+```
+# Step 1: Generate code verifier and challenge (client-side)
+code_verifier = generate_random_string(64)
+code_challenge = base64_url_encode(SHA256(code_verifier))
+
+# Step 2: Get authorization code
+GET /api/oauth/authorize?
+  response_type=code&
+  client_id=CLIENT_ID&
+  redirect_uri=REDIRECT_URI&
+  scope=SCOPE&
+  state=STATE&
+  code_challenge=CODE_CHALLENGE&
+  code_challenge_method=S256
+
+# Step 3: Exchange code for tokens
+POST /api/oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&
+code=AUTHORIZATION_CODE&
+client_id=CLIENT_ID&
+redirect_uri=REDIRECT_URI&
+code_verifier=CODE_VERIFIER
+```
+
+### Client Credentials Flow with PKCE
+
+```
+POST /api/oauth/token
+Content-Type: application/json
+
+{
+  "grant_type": "client_credentials",
+  "client_id": "CLIENT_ID",
+  "client_secret": "CLIENT_SECRET",
+  "scope": "SCOPE",
+  "code_challenge": "CODE_CHALLENGE",
+  "code_challenge_method": "S256",
+  "task_id": "TASK_ID",
+  "task_description": "TASK_DESCRIPTION"
+}
+```
+
+## Task-Aware Authentication
+
+Each token is associated with a task, and tokens can have parent-child relationships:
+
+```
+POST /api/oauth/token
+Content-Type: application/json
+
+{
+  "grant_type": "client_credentials",
+  "client_id": "CLIENT_ID",
+  "client_secret": "CLIENT_SECRET",
+  "scope": "SCOPE",
+  "code_challenge": "CODE_CHALLENGE",
+  "code_challenge_method": "S256",
+  "task_id": "SUBTASK_ID",
+  "task_description": "Subtask execution",
+  "parent_task_id": "PARENT_TASK_ID",
+  "parent_token": "PARENT_TOKEN"
+}
+```
+
+## Dynamic Client Registration
+
+```
+POST /api/oauth/register
+Content-Type: application/json
+
+{
+  "client_name": "My Agent",
+  "client_uri": "https://example.com/agent",
+  "redirect_uris": ["https://example.com/callback"],
+  "grant_types": ["authorization_code", "client_credentials"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "client_secret_basic"
+}
+```
+
+## Server Metadata
+
+The server publishes its configuration at:
+
+```
+GET /.well-known/oauth-authorization-server
+```
+
+## Security Considerations
+
+- PKCE is mandatory for all grant types
+- Tokens are short-lived by default
+- All token usage is logged for audit
+- Task lineage is verified for child tokens
+- Scope inheritance follows the principle of least privilege
 
 ## Project Structure
 
 - `app/`: Flask application (OAuth server)
   - `models/`: Database models
   - `routes/`: API routes
-  - `templates/`: HTML templates for UI
   - `utils/`: Utility functions
     - `logger.py`: Centralized logging configuration
 - `sdk/`: Python SDK for agents
@@ -158,7 +252,6 @@ For a complete example of integration with CrewAI, see the example in `sdk/examp
 - `GET /api/admin/audit/logs`: List audit logs
 - `GET /api/admin/audit/task/<task_id>`: Get task history
 - `GET /api/admin/audit/task-chain/<task_id>`: Get task chain
-- `GET /api/admin/dashboard`: Admin dashboard
 
 ## License
 

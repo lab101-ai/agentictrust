@@ -1,0 +1,60 @@
+version: 1
+
+default:
+  SECRET_KEY: "change-me-in-production"
+  SESSION_TYPE: "filesystem"
+  SESSION_PERMANENT: false
+  SESSION_USE_SIGNER: true
+  SESSION_COOKIE_SECURE: false
+  SESSION_COOKIE_HTTPONLY: true
+  SESSION_COOKIE_SAMESITE: "Lax"
+  PERMANENT_SESSION_LIFETIME: 1800  # 30 minutes in seconds
+  CORS_ORIGINS: "*"
+  JSON_SORT_KEYS: false
+  MAX_CONTENT_LENGTH: 16777216  # 16MB
+
+environments:
+  development:
+    DEBUG: true
+    TESTING: false
+    SERVER_NAME: null
+    APPLICATION_ROOT: "/"
+    HOST: "127.0.0.1"
+    PORT: 5001
+    PREFERRED_URL_SCHEME: "http"
+    CORS_ORIGINS: ["http://localhost:3000", "http://127.0.0.1:3000"]
+    DATABASE_URI: "sqlite:///agentictrust.db"
+    
+  testing:
+    DEBUG: false
+    TESTING: true
+    SERVER_NAME: null
+    APPLICATION_ROOT: "/"
+    HOST: "127.0.0.1"
+    PORT: 5002
+    PREFERRED_URL_SCHEME: "http"
+    DATABASE_URI: "sqlite:///instance/test.db"
+    
+  production:
+    DEBUG: false
+    TESTING: false
+    SERVER_NAME: null
+    APPLICATION_ROOT: "/"
+    HOST: "0.0.0.0"
+    PORT: 5000
+    PREFERRED_URL_SCHEME: "https"
+    SESSION_COOKIE_SECURE: true
+    CORS_ORIGINS: []  # Set specific allowed origins in production
+    DATABASE_URI: "sqlite:///instance/prod.db"  # Change to production database
+
+# OAuth settings
+oauth:
+  token_expiration: 3600  # 1 hour in seconds
+  refresh_token_expiration: 2592000  # 30 days in seconds
+  auth_code_expiration: 600  # 10 minutes in seconds
+  token_length: 64
+  encryption_key: "change-me-in-production"
+  allowed_grant_types: ["authorization_code", "client_credentials", "refresh_token"]
+  default_scopes: ["profile:read"]
+  sensitive_scopes: ["admin", "delete:*"]
+  require_pkce: true 

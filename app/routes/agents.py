@@ -16,7 +16,6 @@ def register_agent():
     # Extract agent details
     agent_name = data.get('agent_name')
     description = data.get('description')
-    allowed_resources = data.get('allowed_resources', [])
     max_scope_level = data.get('max_scope_level', 'restricted')
     tool_ids = data.get('tool_ids', [])  # Tools are now selected by ID
     
@@ -25,7 +24,6 @@ def register_agent():
         agent, client_secret = Agent.create(
             agent_name=agent_name,
             description=description,
-            allowed_resources=allowed_resources,
             max_scope_level=max_scope_level
         )
         
@@ -170,4 +168,47 @@ def remove_tool_from_agent(client_id, tool_id):
         }), 200
     except Exception as e:
         current_app.logger.error(f"Error removing tool from agent: {str(e)}")
-        return jsonify({'error': 'Failed to remove tool from agent'}), 500 
+        return jsonify({'error': 'Failed to remove tool from agent'}), 500
+
+@agents_bp.route('/<client_id>', methods=['PUT'])
+def update_agent(client_id):
+    """Update an existing agent."""
+    agent = Agent.query.get(client_id)
+    if not agent:
+        return jsonify({'error': 'Agent not found'}), 404
+        
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No update data provided'}), 400
+    
+    try:
+        # Update basic agent properties
+        if 'agent_name' in data:
+            agent.agent_name = data['agent_name']
+        if 'description' in data:
+            agent.description = data['description']
+        if 'max_scope_level' in data:
+            agent.max_scope_level = data['max_scope_level']
+            
+        # Handle tool_ids updates if provided
+        if 'tool_ids' in data:
+            # Clear existing tools
+            agent.tools = []
+            
+            # Add new tools
+            for tool_id in data['tool_ids']:
+                tool = Tool.query.get(tool_id)
+                if tool:
+                    agent.add_tool(tool)
+        
+        # Save changes
+        from app import db
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Agent updated successfully',
+            'agent': agent.to_dict()
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Error updating agent: {str(e)}")
+        return jsonify({'error': 'Failed to update agent'}), 500 

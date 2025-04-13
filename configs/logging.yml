@@ -1,0 +1,61 @@
+version: 1
+
+default:
+  level: "INFO"
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}"
+  rotation: "10 MB"
+  retention: "1 week"
+  compression: "zip"
+
+environments:
+  development:
+    level: "DEBUG"
+    sinks:
+      console:
+        level: "DEBUG"
+        colorize: true
+      file:
+        level: "INFO"
+        path: "logs/app.log"
+        rotation: "10 MB"
+        retention: "1 week"
+  
+  production:
+    level: "INFO"
+    sinks:
+      console:
+        level: "WARNING"
+        colorize: false
+      file:
+        level: "INFO"
+        path: "logs/app.log"
+        rotation: "100 MB"
+        retention: "3 months"
+      error_file:
+        level: "ERROR"
+        path: "logs/error.log"
+        rotation: "50 MB"
+        retention: "3 months"
+
+loggers:
+  app:
+    level: "INFO"
+  
+  app.api:
+    level: "DEBUG"
+    
+  app.utils.oauth:
+    level: "DEBUG"
+    sinks:
+      file:
+        path: "logs/oauth.log"
+        rotation: "10 MB"
+        retention: "1 month"
+
+  app.agents:
+    level: "DEBUG"
+    sinks:
+      file:
+        path: "logs/agents.log"
+        rotation: "10 MB"
+        retention: "1 month" 

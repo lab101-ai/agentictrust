@@ -1,24 +1,30 @@
 import os
 import sys
 import uuid
-from typing import Optional
+import base64
+import hashlib
+from typing import Optional, List, Dict, Any
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import AgenticTrust SDK
-from sdk.agentictrust import AgenticTrustClient
+# Import client from agentictrust package
+from agentictrust import AgenticTrustClient
 
-# Mock CrewAI imports (these would be real imports in an actual CrewAI application)
+# Set server URL to use the specified server
+SERVER_URL = 'http://localhost:5001'
+
+# Simple Agent class for demonstration
 class Agent:
-    def __init__(self, name, role, goal):
+    def __init__(self, name, role):
         self.name = name
         self.role = role
-        self.goal = goal
         self.client_id = None
         self.client_secret = None
         self.oauth_token = None
         self.task_id = None
+        self.allowed_tools = []
+        self.tool_ids = []
         
     def set_credentials(self, client_id, client_secret):
         self.client_id = client_id
@@ -28,236 +34,181 @@ class Agent:
         self.oauth_token = token
         self.task_id = task_id
         
+    def add_tool(self, tool_name):
+        self.allowed_tools.append(tool_name)
+        
+    def add_tool_id(self, tool_id):
+        self.tool_ids.append(tool_id)
+        
+    def execute_task(self, task_description, tool_name):
+        """Execute a task using the specified tool.
+        
+        Args:
+            task_description: Description of the task
+            tool_name: Name of the tool to use
+            
+        Returns:
+            A dictionary with the result of the task execution
+        """
+        print(f"Agent {self.name} executing task: {task_description}")
+        print(f"Tool used: {tool_name}")
+        print(f"Task executed successfully: {task_description}")
+        
+        return {
+            "status": "success",
+            "agent": self.name,
+            "tool_used": tool_name,
+            "result": "Task completed successfully"
+        }
+        
     def __str__(self):
         return f"Agent(name='{self.name}', role='{self.role}')"
 
-class Task:
-    def __init__(self, description, agent):
-        self.description = description
-        self.agent = agent
-        self.task_id = str(uuid.uuid4())
-        self.parent_task_id = None
-        self.parent_token = None
-        
-    def set_parent_context(self, parent_task_id, parent_token):
-        self.parent_task_id = parent_task_id
-        self.parent_token = parent_token
-        
-    def __str__(self):
-        return f"Task(description='{self.description}', task_id='{self.task_id}')"
 
-class Crew:
-    def __init__(self, agents, tasks=None):
-        self.agents = agents
-        self.tasks = tasks or []
-        self.oauth_client = AgenticTrustClient(base_url="http://localhost:5000")
-        
-    def register_agents(self):
-        """Register all agents with the AgenticTrust server."""
-        for agent in self.agents:
-            print(f"Registering agent: {agent.name}")
-            
-            # Define agent capabilities based on role
-            allowed_tools = []
-            allowed_resources = []
-            
-            if "researcher" in agent.role.lower():
-                allowed_tools.extend(["web_search", "document_retrieval"])
-                allowed_resources.extend(["search_engine", "document_store"])
-                
-            if "writer" in agent.role.lower():
-                allowed_tools.extend(["text_generation", "summarization"])
-                allowed_resources.extend(["content_editor"])
-                
-            if "analyst" in agent.role.lower():
-                allowed_tools.extend(["data_analysis", "chart_generation"])
-                allowed_resources.extend(["database", "analytics_platform"])
-                
-            # Register agent
-            response = self.oauth_client.agent.register(
-                agent_name=agent.name,
-                description=f"{agent.role}: {agent.goal}",
-                allowed_tools=allowed_tools,
-                allowed_resources=allowed_resources
-            )
-            
-            # Store credentials
-            agent.set_credentials(
-                response["credentials"]["client_id"],
-                response["credentials"]["client_secret"]
-            )
-            
-            # Activate agent
-            self.oauth_client.agent.activate(
-                response["credentials"]["registration_token"]
-            )
-            
-            print(f"Agent registered and activated: {agent.name}")
+def simple_example():
+    """Run a simple example demonstrating the basic workflow with AgenticTrust."""
+    # Create client
+    client = AgenticTrustClient(api_base=SERVER_URL, debug=True)
     
-    def get_token_for_task(self, agent: Agent, task: Task) -> Optional[str]:
-        """Get an OAuth token for an agent to perform a specific task."""
-        if not agent.client_id or not agent.client_secret:
-            print(f"Agent {agent.name} has no credentials. Register agents first.")
-            return None
-            
-        # Determine required tools and resources based on task
-        required_tools = []
-        required_resources = []
-        scope = ["execute:task"]
+    print("=== SIMPLE AGENTICTRUST EXAMPLE ===")
+    print(f"AgenticTrust Client using server: {SERVER_URL}")
+    
+    # Step 1: Register a tool
+    print("\nStep 1: Registering a tool")
+    tool_name = "web_search"
+    
+    try:
+        # Check if tool already exists
+        tool_list = client.tool.list()
+        existing_tool = None
         
-        if "search" in task.description.lower() or "find" in task.description.lower():
-            required_tools.append("web_search")
-            required_resources.append("search_engine")
-            scope.append("read:web")
-            
-        if "write" in task.description.lower() or "create" in task.description.lower():
-            required_tools.append("text_generation")
-            required_resources.append("content_editor")
-            scope.append("write:content")
-            
-        if "analyze" in task.description.lower() or "review" in task.description.lower():
-            required_tools.append("data_analysis")
-            required_resources.append("database")
-            scope.append("read:data")
-            
-        # Request token
-        print(f"Requesting token for task: {task.description}")
-        response = self.oauth_client.token.request(
-            client_id=agent.client_id,
-            client_secret=agent.client_secret,
-            scope=scope,
-            task_id=task.task_id,
-            task_description=task.description,
-            required_tools=required_tools,
-            required_resources=required_resources,
-            parent_task_id=task.parent_task_id,
-            parent_token=task.parent_token
+        for t in tool_list.get("tools", []):
+            if t["name"] == tool_name:
+                existing_tool = t
+                break
+        
+        if existing_tool:
+            # Use existing tool
+            tool_id = existing_tool.get("tool_id")
+            print(f"Using existing tool: {tool_name} (ID: {tool_id})")
+        else:
+            # Create new tool
+            response = client.tool.create(
+                name=tool_name,
+                description="Search the web for information",
+                category="research",
+                permissions_required=["read:web"],
+                input_schema={"type": "object", "properties": {}}
+            )
+            tool_id = response["tool"]["tool_id"]
+            print(f"Tool registered: {tool_name} (ID: {tool_id})")
+    except Exception as e:
+        print(f"Error registering tool: {str(e)}")
+        return
+    
+    # Step 2: Register an agent
+    print("\nStep 2: Registering an agent")
+    agent = Agent("ResearchAgent", "Researcher: Find information")
+    agent.add_tool(tool_name)
+    
+    try:
+        # Register the agent with the server
+        response = client.agent.register(
+            agent_name=agent.name,
+            description=agent.role,
+            allowed_tools=[tool_name],
+            max_scope_level="restricted",
+            tool_ids=[tool_id]
         )
         
-        # Store token in agent
-        agent.set_oauth_token(response["access_token"], task.task_id)
+        # The response structure contains nested objects
+        # Extract client_id, client_secret, and registration_token from credentials
+        client_id = response["credentials"]["client_id"]
+        client_secret = response["credentials"]["client_secret"]
+        registration_token = response["credentials"]["registration_token"]
         
-        print(f"Token obtained for task: {task.description}")
-        print(f"Granted tools: {response['granted_tools']}")
-        print(f"Granted resources: {response['granted_resources']}")
+        # Store credentials
+        agent.set_credentials(client_id, client_secret)
         
-        return response["access_token"]
-    
-    def execute_task(self, task: Task) -> dict:
-        """Execute a task with the appropriate agent and token."""
-        # Get token for task
-        token = self.get_token_for_task(task.agent, task)
-        if not token:
-            return {"error": "Failed to obtain token for task"}
-            
-        # Verify token before using it
-        verification = self.oauth_client.token.verify()
-        if not verification["is_valid"]:
-            return {"error": "Invalid token", "details": verification}
-            
-        # Call protected endpoint to simulate task execution
-        try:
-            print(f"Executing task: {task.description}")
-            result = self.oauth_client.token.call_protected_endpoint()
-            
-            # In a real application, this would be replaced with actual agent execution logic
-            print(f"Task executed successfully: {task.description}")
-            
-            return {
-                "status": "success",
-                "task_id": task.task_id,
-                "agent": task.agent.name,
-                "result": "Task completed successfully"
-            }
-            
-        except Exception as e:
-            return {"error": str(e)}
-    
-    def create_subtask(self, parent_task: Task, description: str, agent: Agent) -> Task:
-        """Create a subtask with parent task context."""
-        task = Task(description, agent)
-        task.set_parent_context(parent_task.task_id, parent_task.agent.oauth_token)
-        self.tasks.append(task)
-        return task
-    
-    def run(self):
-        """Run the crew's workflow of tasks."""
-        # Register all agents first
-        self.register_agents()
+        # Activate the agent using the registration token
+        client.agent.activate(registration_token)
         
-        # Execute tasks in sequence
-        results = []
-        for task in self.tasks:
-            result = self.execute_task(task)
-            results.append(result)
-            
-        return results
+        print(f"Agent registered and activated: {agent.name}")
+        print(f"Client ID: {client_id}")
+        print(f"Allowed tools: {agent.allowed_tools}")
+    except Exception as e:
+        print(f"Error registering agent: {str(e)}")
+        return
+    
+    # Step 3: Get authorization for agent
+    print("\nStep 3: Getting authorization for agent")
+    task_id = str(uuid.uuid4())
+    
+    # Generate PKCE code verifier and challenge
+    def generate_code_verifier(length=128):
+        import secrets
+        code_verifier = base64.urlsafe_b64encode(secrets.token_bytes(96)).decode('utf-8')
+        code_verifier = code_verifier.rstrip('=')
+        return code_verifier[:length]
+    
+    def generate_code_challenge(verifier):
+        code_challenge = hashlib.sha256(verifier.encode('utf-8')).digest()
+        code_challenge = base64.urlsafe_b64encode(code_challenge).decode('utf-8')
+        code_challenge = code_challenge.rstrip('=')
+        return code_challenge
+    
+    # Create PKCE values
+    code_verifier = generate_code_verifier()
+    code_challenge = generate_code_challenge(code_verifier)
+    
+    print(f"Generated PKCE code_verifier: {code_verifier[:10]}... (truncated)")
+    print(f"Generated PKCE code_challenge: {code_challenge[:10]}... (truncated)")
+    
+    try:
+        # Request token for the agent with PKCE
+        token_response = client.token.request(
+            client_id=agent.client_id,
+            client_secret=agent.client_secret,
+            scope=["read:web"],
+            task_id=task_id,
+            task_description="Search for information",
+            required_tools=[tool_name],
+            code_challenge=code_challenge,
+            code_challenge_method="S256"
+        )
+        
+        # Set token for agent
+        agent.set_oauth_token(token_response.get("access_token"), task_id)
+        
+        print(f"Token acquired for agent {agent.name}")
+        print(f"Task ID: {task_id}")
+    except Exception as e:
+        print(f"Error getting token: {str(e)}")
+        return
+    
+    # Step 4: Execute a tool based on agent's auth
+    print("\nStep 4: Executing a tool based on agent's auth")
+    
+    # For demo purposes, we'll just simulate executing the tool
+    # In a real scenario, you would use the token to make authorized API calls
+    result = agent.execute_task("Search for product information", tool_name)
+    
+    print(f"\nTask result: {result}")
+    
+    # Cleanup - revoke token when done
+    print("\nRevoking token after task completion")
+    try:
+        revocation = client.token.revoke(
+            token=agent.oauth_token,
+            reason="Tasks completed"
+        )
+        print(f"Token revocation: {revocation}")
+    except Exception as e:
+        print(f"Error revoking token: {str(e)}")
+    
+    print("\nWorkflow completed!")
+
 
 # Example usage
 if __name__ == "__main__":
-    # Create agents
-    researcher = Agent(
-        name="ResearchAgent",
-        role="Researcher",
-        goal="Find relevant information from the web"
-    )
-    
-    writer = Agent(
-        name="WriterAgent",
-        role="Content Writer",
-        goal="Create engaging content based on research"
-    )
-    
-    analyst = Agent(
-        name="AnalystAgent",
-        role="Data Analyst",
-        goal="Analyze and interpret data"
-    )
-    
-    # Create tasks
-    research_task = Task(
-        description="Search for latest AI developments in authentication", 
-        agent=researcher
-    )
-    
-    writing_task = Task(
-        description="Write a blog post about AI authentication methods",
-        agent=writer
-    )
-    
-    analysis_task = Task(
-        description="Analyze effectiveness of different authentication approaches",
-        agent=analyst
-    )
-    
-    # Create crew
-    crew = Crew(
-        agents=[researcher, writer, analyst],
-        tasks=[research_task, writing_task, analysis_task]
-    )
-    
-    # Run workflow
-    print("Starting CrewAI workflow with AgenticTrust OAuth...")
-    results = crew.run()
-    
-    # After tasks complete, create a subtask (demonstrating parent-child relationship)
-    if results and "error" not in results[0]:
-        print("\nCreating subtask with parent context...")
-        subtask = crew.create_subtask(
-            parent_task=research_task,
-            description="Verify and validate research findings",
-            agent=analyst
-        )
-        
-        subtask_result = crew.execute_task(subtask)
-        print(f"Subtask result: {subtask_result}")
-        
-        # Revoke token when done
-        print("\nRevoking token after task completion...")
-        revocation = crew.oauth_client.token.revoke(
-            token=researcher.oauth_token,
-            reason="Task completed"
-        )
-        print(f"Token revocation: {revocation}")
-    
-    print("\nWorkflow completed!") 
+    simple_example()

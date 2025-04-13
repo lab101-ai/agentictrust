@@ -18,7 +18,6 @@ class Agent(db.Model):
     client_secret_hash = db.Column(db.String(256), nullable=False)
     agent_name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    allowed_resources = db.Column(db.JSON, nullable=False, default=list)
     max_scope_level = db.Column(db.String(20), default='restricted')
     registration_token = db.Column(db.String(64), unique=True, nullable=True)
     is_active = db.Column(db.Boolean, default=False)
@@ -32,7 +31,7 @@ class Agent(db.Model):
                            backref=db.backref('agents', lazy=True))
     
     @classmethod
-    def create(cls, agent_name, description=None, allowed_resources=None, max_scope_level='restricted'):
+    def create(cls, agent_name, description=None, max_scope_level='restricted'):
         """Create a new agent with generated client credentials."""
         client_secret = secrets.token_urlsafe(32)
         client_secret_hash = generate_password_hash(client_secret)
@@ -41,7 +40,6 @@ class Agent(db.Model):
         agent = cls(
             agent_name=agent_name,
             description=description,
-            allowed_resources=allowed_resources or [],
             max_scope_level=max_scope_level,
             client_secret_hash=client_secret_hash,
             registration_token=registration_token
@@ -81,7 +79,6 @@ class Agent(db.Model):
             'client_id': self.client_id,
             'agent_name': self.agent_name,
             'description': self.description,
-            'allowed_resources': self.allowed_resources,
             'max_scope_level': self.max_scope_level,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat(),

@@ -21,8 +21,15 @@ def list_tools():
         query = query.filter(Tool.is_active == is_active)
     
     tools = query.all()
+    tool_dicts = []
+    for tool in tools:
+        tool_dict = tool.to_dict()
+        # Alias parameters as inputSchema for response
+        tool_dict['inputSchema'] = tool_dict.pop('parameters')
+        tool_dicts.append(tool_dict)
+    
     return jsonify({
-        'tools': [tool.to_dict() for tool in tools]
+        'tools': tool_dicts
     }), 200
 
 @tools_bp.route('/<tool_id>', methods=['GET'])
@@ -31,8 +38,12 @@ def get_tool(tool_id):
     tool = Tool.query.get(tool_id)
     if not tool:
         return jsonify({'error': 'Tool not found'}), 404
-        
-    return jsonify(tool.to_dict()), 200
+    
+    tool_dict = tool.to_dict()
+    # Alias parameters as inputSchema for response
+    tool_dict['inputSchema'] = tool_dict.pop('parameters')
+    
+    return jsonify(tool_dict), 200
 
 @tools_bp.route('', methods=['POST'])
 def create_tool():
@@ -53,7 +64,9 @@ def create_tool():
     description = data.get('description')
     category = data.get('category')
     permissions_required = data.get('permissions_required', [])
-    parameters = data.get('parameters', [])
+    
+    # Support both 'parameters' and 'inputSchema' fields, with 'inputSchema' taking precedence
+    parameters = data.get('inputSchema', data.get('parameters', []))
     
     # Create tool
     try:
@@ -65,9 +78,13 @@ def create_tool():
             parameters=parameters
         )
         
+        tool_dict = tool.to_dict()
+        # Alias parameters as inputSchema for response
+        tool_dict['inputSchema'] = tool_dict.pop('parameters')
+        
         return jsonify({
             'message': 'Tool registered successfully',
-            'tool': tool.to_dict()
+            'tool': tool_dict
         }), 201
     except Exception as e:
         current_app.logger.error(f"Error registering tool: {str(e)}")
@@ -90,12 +107,20 @@ def update_tool(tool_id):
         if existing_tool:
             return jsonify({'error': 'Tool with this name already exists'}), 409
     
+    # Handle inputSchema alias for parameters
+    if 'inputSchema' in data:
+        data['parameters'] = data.pop('inputSchema')
+    
     # Update fields
     try:
         tool.update(**data)
+        tool_dict = tool.to_dict()
+        # Alias parameters as inputSchema for response
+        tool_dict['inputSchema'] = tool_dict.pop('parameters')
+        
         return jsonify({
             'message': 'Tool updated successfully',
-            'tool': tool.to_dict()
+            'tool': tool_dict
         }), 200
     except Exception as e:
         current_app.logger.error(f"Error updating tool: {str(e)}")
@@ -128,9 +153,13 @@ def activate_tool(tool_id):
         
     try:
         tool.update(is_active=True)
+        tool_dict = tool.to_dict()
+        # Alias parameters as inputSchema for response
+        tool_dict['inputSchema'] = tool_dict.pop('parameters')
+        
         return jsonify({
             'message': 'Tool activated successfully',
-            'tool': tool.to_dict()
+            'tool': tool_dict
         }), 200
     except Exception as e:
         current_app.logger.error(f"Error activating tool: {str(e)}")
@@ -145,9 +174,13 @@ def deactivate_tool(tool_id):
         
     try:
         tool.update(is_active=False)
+        tool_dict = tool.to_dict()
+        # Alias parameters as inputSchema for response
+        tool_dict['inputSchema'] = tool_dict.pop('parameters')
+        
         return jsonify({
             'message': 'Tool deactivated successfully',
-            'tool': tool.to_dict()
+            'tool': tool_dict
         }), 200
     except Exception as e:
         current_app.logger.error(f"Error deactivating tool: {str(e)}")

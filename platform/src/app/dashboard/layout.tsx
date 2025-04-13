@@ -1,11 +1,12 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { dashboardTabs, defaultTab } from "@/config/dashboard";
 
 export default function DashboardLayout({
   children,
@@ -14,16 +15,16 @@ export default function DashboardLayout({
 }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   
   // Close mobile menu when route changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
-  }, [pathname]);
+  }, [pathname, searchParams]);
 
   const isTabActive = (tabName: string | null) => {
-    if (!tabName && pathname === "/dashboard") return true;
-    return pathname.includes("/dashboard") && 
-      new URLSearchParams(pathname.split('?')[1] || '').get('tab') === tabName;
+    if (!tabName && pathname === "/dashboard" && !searchParams.get('tab')) return true;
+    return pathname === "/dashboard" && searchParams.get('tab') === tabName;
   };
 
   return (
@@ -60,60 +61,19 @@ export default function DashboardLayout({
         </div>
         
         <nav className="flex flex-col gap-2 p-6">
-          <Button 
-            variant={isTabActive(null) ? "default" : "ghost"} 
-            className="justify-start w-full" 
-            asChild
-          >
-            <Link href="/dashboard">
-              Dashboard
-            </Link>
-          </Button>
-          <Button 
-            variant={isTabActive("agents") ? "default" : "ghost"} 
-            className="justify-start w-full" 
-            asChild
-          >
-            <Link href="/dashboard?tab=agents">
-              Agents
-            </Link>
-          </Button>
-          <Button 
-            variant={isTabActive("tools") ? "default" : "ghost"} 
-            className="justify-start w-full" 
-            asChild
-          >
-            <Link href="/dashboard?tab=tools">
-              Tools
-            </Link>
-          </Button>
-          <Button 
-            variant={isTabActive("tokens") ? "default" : "ghost"} 
-            className="justify-start w-full" 
-            asChild
-          >
-            <Link href="/dashboard?tab=tokens">
-              Tokens
-            </Link>
-          </Button>
-          <Button 
-            variant={isTabActive("audit") ? "default" : "ghost"} 
-            className="justify-start w-full" 
-            asChild
-          >
-            <Link href="/dashboard?tab=audit">
-              Audit Logs
-            </Link>
-          </Button>
-          <Button 
-            variant={isTabActive("scopes") ? "default" : "ghost"} 
-            className="justify-start w-full" 
-            asChild
-          >
-            <Link href="/dashboard?tab=scopes">
-              Scopes
-            </Link>
-          </Button>
+          {dashboardTabs.map((tab) => (
+            <Button 
+              key={tab.id}
+              variant={isTabActive(tab.id === defaultTab ? null : tab.id) ? "default" : "ghost"} 
+              className="justify-start w-full" 
+              asChild
+            >
+              <Link href={tab.id === defaultTab ? "/dashboard" : `/dashboard?tab=${tab.id}`}>
+                <tab.icon className="mr-2 h-4 w-4" />
+                {tab.label}
+              </Link>
+            </Button>
+          ))}
         </nav>
       </aside>
       

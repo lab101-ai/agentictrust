@@ -49,6 +49,9 @@ export interface Agent {
   max_scope_level?: string;
   registration_token?: string;
   tools?: Tool[];
+  tool_ids?: string[];
+  allowed_tools?: string[];
+  allowed_resources?: string[];
 }
 
 export interface AgentRegistration {

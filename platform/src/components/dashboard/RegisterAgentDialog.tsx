@@ -21,7 +21,11 @@ import { useState, useEffect } from "react";
 import { AgentAPI, ToolAPI, Tool, AgentRegistration, AgentCredentials } from "@/lib/api";
 import { toast } from "sonner";
 
-export function RegisterAgentDialog() {
+interface RegisterAgentDialogProps {
+  onAgentAdded?: () => Promise<void> | void;
+}
+
+export function RegisterAgentDialog({ onAgentAdded }: RegisterAgentDialogProps) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<AgentRegistration>({
     agent_name: "",
@@ -99,6 +103,11 @@ export function RegisterAgentDialog() {
       const result = await AgentAPI.create(formData);
       toast.success(`Agent ${result.agent_name} registered successfully`);
       setCredentials(result.credentials);
+      
+      // Call the callback if provided
+      if (onAgentAdded) {
+        onAgentAdded();
+      }
     } catch (error) {
       // Error handled by toast
       toast.error("Failed to register agent");

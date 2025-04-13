@@ -17,9 +17,10 @@ import { Separator } from "@/components/ui/separator";
 
 interface AgentActionsProps {
   agent: Agent;
+  onUpdate?: () => Promise<void> | void;
 }
 
-export default function AgentActions({ agent }: AgentActionsProps) {
+export default function AgentActions({ agent, onUpdate }: AgentActionsProps) {
   const [isActivating, setIsActivating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -35,8 +36,10 @@ export default function AgentActions({ agent }: AgentActionsProps) {
     try {
       await AgentAPI.activate(agent.registration_token);
       toast.success(`Agent ${agent.agent_name} activated successfully`);
-      // Refresh the page to get updated data
-      window.location.reload();
+      // Call the onUpdate callback if provided
+      if (onUpdate) {
+        await onUpdate();
+      }
     } catch (error) {
       // Error handled by toast
       toast.error("Failed to activate agent");
@@ -51,8 +54,10 @@ export default function AgentActions({ agent }: AgentActionsProps) {
       try {
         await AgentAPI.delete(agent.client_id);
         toast.success(`Agent ${agent.agent_name} deleted successfully`);
-        // Refresh the page to get updated data
-        window.location.reload();
+        // Call the onUpdate callback if provided
+        if (onUpdate) {
+          await onUpdate();
+        }
       } catch (error) {
         // Error handled by toast
         toast.error("Failed to delete agent");
@@ -249,7 +254,8 @@ Content-Type: application/json
       <EditAgentDialog 
         agent={agent} 
         open={editDialogOpen} 
-        onOpenChange={setEditDialogOpen} 
+        onOpenChange={setEditDialogOpen}
+        onAgentUpdated={onUpdate}
       />
     </div>
   );

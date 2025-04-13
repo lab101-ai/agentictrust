@@ -23,9 +23,10 @@ interface EditAgentDialogProps {
   agent: Agent;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onAgentUpdated?: () => Promise<void> | void;
 }
 
-export function EditAgentDialog({ agent, open, onOpenChange }: EditAgentDialogProps) {
+export function EditAgentDialog({ agent, open, onOpenChange, onAgentUpdated }: EditAgentDialogProps) {
   const [formData, setFormData] = useState({
     agent_name: "",
     description: "",
@@ -106,8 +107,10 @@ export function EditAgentDialog({ agent, open, onOpenChange }: EditAgentDialogPr
       
       toast.success(`Agent ${result.agent_name} updated successfully`);
       onOpenChange(false);
-      // Refresh the page to show updated data
-      window.location.reload();
+      // Call the onAgentUpdated callback if provided
+      if (onAgentUpdated) {
+        await onAgentUpdated();
+      }
     } catch (error) {
       // Error handled by toast
       toast.error("Failed to update agent");

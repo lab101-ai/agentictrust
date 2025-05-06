@@ -4,49 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Tool, ToolAPI } from "@/lib/api";
 import { toast } from "sonner";
 import { useState } from "react";
-import { ViewToolDialog } from "@/components/dashboard/ViewToolDialog";
-import { EditToolDialog } from "@/components/dashboard/EditToolDialog";
+import { useRouter } from "next/navigation";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 
 interface ToolActionsProps {
   tool: Tool;
+  onUpdate?: () => void;
 }
 
-export default function ToolActions({ tool }: ToolActionsProps) {
-  const [isActivating, setIsActivating] = useState(false);
-  const [isDeactivating, setIsDeactivating] = useState(false);
+export default function ToolActions({ tool, onUpdate }: ToolActionsProps) {
+  const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-
-  const handleActivate = async () => {
-    setIsActivating(true);
-    try {
-      await ToolAPI.activate(tool.tool_id);
-      toast.success(`Tool ${tool.name} activated successfully`);
-      // Refresh the page to get updated data
-      window.location.reload();
-    } catch (error) {
-      // Error handled by toast
-      toast.error("Failed to activate tool");
-    } finally {
-      setIsActivating(false);
-    }
-  };
-
-  const handleDeactivate = async () => {
-    setIsDeactivating(true);
-    try {
-      await ToolAPI.deactivate(tool.tool_id);
-      toast.success(`Tool ${tool.name} deactivated successfully`);
-      // Refresh the page to get updated data
-      window.location.reload();
-    } catch (error) {
-      // Error handled by toast
-      toast.error("Failed to deactivate tool");
-    } finally {
-      setIsDeactivating(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (confirm(`Are you sure you want to delete this tool: ${tool.name}?`)) {
@@ -54,8 +22,12 @@ export default function ToolActions({ tool }: ToolActionsProps) {
       try {
         await ToolAPI.delete(tool.tool_id);
         toast.success(`Tool ${tool.name} deleted successfully`);
-        // Refresh the page to get updated data
-        window.location.reload();
+        if (onUpdate) {
+          onUpdate();
+        } else {
+          // Refresh the page to get updated data
+          window.location.reload();
+        }
       } catch (error) {
         // Error handled by toast
         toast.error("Failed to delete tool");
@@ -66,61 +38,28 @@ export default function ToolActions({ tool }: ToolActionsProps) {
   };
 
   return (
-    <div className="space-x-2">
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={() => setViewDialogOpen(true)}
+    <div className="flex items-center gap-2">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={() => router.push(`/dashboard/tools/${tool.tool_id}`)}
+        title="Edit tool"
       >
-        View
+        <Pencil className="h-4 w-4" />
+        <span className="sr-only">Edit</span>
       </Button>
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={() => setEditDialogOpen(true)}
-      >
-        Edit
-      </Button>
-      <Button 
-        variant="destructive" 
-        size="sm"
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-destructive bg-destructive/10 hover:text-destructive hover:bg-destructive/20"
         onClick={handleDelete}
         disabled={isDeleting}
+        title="Delete tool"
       >
-        {isDeleting ? "Deleting..." : "Delete"}
+        <Trash2 className="h-4 w-4" />
+        <span className="sr-only">{isDeleting ? "Deleting..." : "Delete"}</span>
       </Button>
-      
-      {tool.is_active ? (
-        <Button 
-          variant="secondary" 
-          size="sm"
-          onClick={handleDeactivate}
-          disabled={isDeactivating}
-        >
-          {isDeactivating ? "Deactivating..." : "Deactivate"}
-        </Button>
-      ) : (
-        <Button 
-          variant="default" 
-          size="sm"
-          onClick={handleActivate}
-          disabled={isActivating}
-        >
-          {isActivating ? "Activating..." : "Activate"}
-        </Button>
-      )}
-      
-      <ViewToolDialog 
-        tool={tool} 
-        open={viewDialogOpen} 
-        onOpenChange={setViewDialogOpen} 
-      />
-      
-      <EditToolDialog 
-        tool={tool} 
-        open={editDialogOpen} 
-        onOpenChange={setEditDialogOpen} 
-      />
     </div>
   );
-} 
+}

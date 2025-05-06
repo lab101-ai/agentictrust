@@ -1,17 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Agent, AgentAPI } from "@/lib/api";
-import { toast } from "sonner";
+import { useState, useEffect, useMemo } from "react";
+import { AgentAPI, Agent } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { IconBadge, StatusBadge, SecurityBadge } from "@/components/ui/icon-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Users, Calendar, Info, Check, X } from "lucide-react";
-import { RegisterAgentDialog } from "@/components/dashboard/RegisterAgentDialog";
-import AgentActions from "@/components/dashboard/AgentActions";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { AlertCircle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
+
+import AgentActions from "@/components/dashboard/AgentActions";
+
+import { formatTimeAgo } from "@/lib/utils";
 
 export function AgentsTab() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -19,6 +24,7 @@ export function AgentsTab() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const router = useRouter();
 
   const fetchAgents = async () => {
     setLoading(true);
@@ -63,15 +69,22 @@ export function AgentsTab() {
 
   return (
     <Card id="agents">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
+      <CardHeader>
+        <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Registered Agents</CardTitle>
+            <CardTitle>Agents</CardTitle>
             <CardDescription>View and manage AI agents</CardDescription>
           </div>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => router.push('/dashboard/agents/new')} 
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Agent
+            </Button>
+          </div>
         </div>
-        <RegisterAgentDialog onAgentAdded={fetchAgents} />
       </CardHeader>
       <CardContent>
         {error ? (
@@ -114,52 +127,54 @@ export function AgentsTab() {
                   </Button>
                 </div>
                 <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Client ID</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAgents.map((agent) => (
-                    <TableRow key={agent.client_id}>
-                      <TableCell className="font-medium">{agent.agent_name}</TableCell>
-                      <TableCell className="font-mono text-xs">{agent.client_id.substring(0, 8)}...</TableCell>
-                      <TableCell className="max-w-[300px] truncate">
-                        <div className="flex items-center gap-1">
-                          <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span>{agent.description || "No description"}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={agent.is_active ? "default" : "secondary"}>
-                          {agent.is_active ? (
-                            <div className="flex items-center gap-1">
-                              <Check className="h-3 w-3" /> Active
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <X className="h-3 w-3" /> Inactive
-                            </div>
-                          )}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span>{new Date(agent.created_at).toLocaleDateString()}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <AgentActions agent={agent} onUpdate={fetchAgents} />
-                      </TableCell>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Client ID</TableHead>
+                      <TableHead>Max Scope</TableHead>
+                      <TableHead>Tool Count</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAgents.map((agent) => (
+                      <TableRow key={agent.client_id} className="hover:bg-muted/50">
+                        <TableCell className="font-medium">
+                          <Link href={`/dashboard/agents/${agent.client_id}`} className="hover:underline">
+                            {agent.agent_name}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <code className="text-xs font-mono bg-muted px-1 py-0.5 rounded">{agent.client_id.substring(0, 8)}...</code>
+                        </TableCell>
+                        <TableCell>
+                          {agent.max_scope_level ? (
+                            <SecurityBadge subtype={agent.max_scope_level as 'restricted' | 'standard' | 'elevated'}> 
+                              {agent.max_scope_level}
+                            </SecurityBadge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {(agent.tool_ids?.length ?? agent.tools?.length ?? 0)}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge subtype={agent.is_active ? "success" : "inactive"}>
+                            {agent.is_active ? "Active" : "Inactive"}
+                          </StatusBadge>
+                        </TableCell>
+                        <TableCell>
+                          <span title={new Date(agent.created_at).toLocaleString()}>{formatTimeAgo(agent.created_at)}</span>
+                        </TableCell>
+                        <TableCell>
+                          <AgentActions agent={agent} onUpdate={fetchAgents} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
                 </Table>
                 {activeFilter !== 'all' && filteredAgents.length === 0 && (
                   <div className="mt-4 p-4 bg-muted/50 rounded-md text-center">
@@ -169,7 +184,7 @@ export function AgentsTab() {
               </>
             ) : (
               <div className="bg-muted p-4 rounded-md text-center">
-                No agents registered yet. Click "Register New Agent" to create one.
+                No agents available yet. Click "New Agent" to create one.
               </div>
             )}
           </>

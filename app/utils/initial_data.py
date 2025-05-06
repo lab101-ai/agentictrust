@@ -1,38 +1,43 @@
 import os
 import json
 import yaml
-from app.models import db
+from app.db import db_session
 from sqlalchemy import inspect
 from app.utils.logger import logger
 
 def initialize_database():
     """Create database tables if they don't exist."""
+    # In the new FastAPI structure, we don't need to check tables this way
+    # The init_db() function in app.db.__init__ is already called from main.py
+    # This is just a placeholder for compatibility
+    from app.db import engine
+    
     # Check if tables exist, create them if they don't
-    inspector = inspect(db.engine)
+    inspector = inspect(engine)
     if not inspector.has_table('scopes'):
-        # Create all tables that don't exist yet
-        db.create_all()
-        logger.info("Created necessary database tables")
+        # Tables will be created by init_db() in main.py
+        logger.info("Database tables need to be created")
         return True
+    
+    logger.info("Database tables already exist")
     return False
 
 def load_initial_data():
     """Load initial data from configuration files."""
-    # Check if we need to create tables first
-    tables_created = initialize_database()
+    # Check if tables exist
+    initialize_database()
     
-    # Load all known configuration types
+    # Load all known configuration types (scopes moved to engine initialization)
     config_types = [
-        'scopes',        # OAuth scopes
         'oauth',         # OAuth server settings
         'agents',        # Default agents
         'tools',         # Default tools
-        'permissions'    # Permission mappings
+        'users'          # Predefined platform users
     ]
     
-    # If tables already existed, we might still want to load configs
-    # but skip the data population
-    skip_data = not tables_created
+    # Always attempt to load the data, regardless of whether tables existed
+    # In FastAPI migration, we want to make sure data is loaded
+    skip_data = False
     
     # Try to load each config file
     for config_type in config_types:
@@ -43,14 +48,18 @@ def load_initial_data():
 
 def load_config_data(data_type, skip_data=False):
     """Load configuration data for a specific data type."""
-    # Look for configuration files in several possible locations
+    import pathlib
+    
+    # Find the project root directory
+    app_dir = pathlib.Path(__file__).parent.parent  # utils -> app
+    project_root = app_dir.parent  # app -> project_root
+    config_dir = project_root / 'data'
+    
+    # Look for configuration files with absolute paths
     possible_config_paths = [
-        f'configs/{data_type}.yml',
-        f'configs/{data_type}.yaml',
-        f'configs/{data_type}.json',
-        f'../configs/{data_type}.yml',
-        f'../configs/{data_type}.yaml',
-        f'../configs/{data_type}.json',
+        config_dir / f'{data_type}.yml',
+        config_dir / f'{data_type}.yaml',
+        config_dir / f'{data_type}.json',
     ]
     
     config_data = None
@@ -58,10 +67,10 @@ def load_config_data(data_type, skip_data=False):
     
     # Try to find and load a config file
     for path in possible_config_paths:
-        if os.path.exists(path):
+        if path.exists():
             config_path = path
             with open(path, 'r') as f:
-                if path.endswith('.json'):
+                if str(path).endswith('.json'):
                     config_data = json.load(f)
                 else:  # YAML file
                     config_data = yaml.safe_load(f)
@@ -79,57 +88,22 @@ def load_config_data(data_type, skip_data=False):
         return config_data
         
     # Import data-specific loading function
-    if data_type == 'scopes':
-        from app.models import Scope
-        load_scopes(config_data)
-    elif data_type == 'agents':
-        from app.models import Agent
+    if data_type == 'agents':
+        from app.db.models import Agent
         load_agents(config_data)
     elif data_type == 'tools':
-        from app.models import Tool
+        from app.db.models import Tool
         load_tools(config_data)
     elif data_type == 'oauth':
         load_oauth_settings(config_data)
-    elif data_type == 'permissions':
-        load_permissions(config_data)
+    elif data_type == 'users':
+        load_users(config_data)
         
     return config_data
 
-def load_scopes(config_data):
-    """Load scope data from configuration."""
-    from app.models import Scope
-    
-    if not config_data or 'scopes' not in config_data:
-        logger.warning("No scope data found in configuration")
-        return
-    
-    scopes_data = config_data['scopes']
-    created_count = 0
-    
-    for scope_data in scopes_data:
-        # Create new scope
-        scope = Scope(
-            name=scope_data["name"],
-            description=scope_data.get("description", ""),
-            category=scope_data.get("category", "read"),
-            is_default=scope_data.get("is_default", False),
-            is_sensitive=scope_data.get("is_sensitive", False),
-            requires_approval=scope_data.get("requires_approval", False)
-        )
-        db.session.add(scope)
-        created_count += 1
-    
-    if created_count > 0:
-        try:
-            db.session.commit()
-            logger.info(f"Created {created_count} scopes from configuration")
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error creating scopes: {str(e)}")
-
 def load_agents(config_data):
     """Load agent data from configuration."""
-    from app.models import Agent
+    from app.db.models import Agent
     
     if not config_data or 'agents' not in config_data:
         logger.warning("No agent data found in configuration")
@@ -165,7 +139,7 @@ def load_agents(config_data):
 
 def load_tools(config_data):
     """Load tool data from configuration."""
-    from app.models import Tool
+    from app.db.models import Tool
     
     if not config_data or 'tools' not in config_data:
         logger.warning("No tool data found in configuration")
@@ -202,71 +176,88 @@ def load_tools(config_data):
 
 def load_oauth_settings(config_data):
     """Load OAuth server settings from configuration."""
-    if not config_data or 'oauth_settings' not in config_data:
+    if not config_data or 'oauth' not in config_data:
         logger.warning("No OAuth settings found in configuration")
         return
-    
-    oauth_settings = config_data['oauth_settings']
+        
+    oauth_settings = config_data['oauth']
     
     # Store settings in environment variables or app config
-    from flask import current_app
+    import os
+    from app.utils.config import load_config
     
+    # Store in environment variables for FastAPI to use
     for key, value in oauth_settings.items():
-        if hasattr(current_app.config, key):
-            current_app.config[key] = value
-            logger.debug(f"Updated OAuth setting: {key}")
+        os.environ[key] = str(value)
+        logger.debug(f"Updated OAuth setting in environment: {key}")
     
     logger.info("Applied OAuth server settings from configuration")
 
-def load_permissions(config_data):
-    """Load permission mappings from configuration."""
-    if not config_data or 'permissions' not in config_data:
-        logger.warning("No permission mappings found in configuration")
+def load_users(config_data):
+    """Load predefined user data from configuration."""
+    from app.db.models import User
+
+    if not config_data or 'users' not in config_data:
+        logger.warning("No user data found in configuration")
         return
-    
-    # This function can be used to set up relationships between 
-    # agents, tools, and scopes based on configuration
-    from app.models import Agent, Tool, Scope
-    
-    permissions_data = config_data['permissions']
-    
-    # Process agent-tool mappings
-    if 'agent_tools' in permissions_data:
-        for mapping in permissions_data['agent_tools']:
-            agent_name = mapping.get('agent_name')
-            tool_names = mapping.get('tools', [])
-            
-            if not agent_name or not tool_names:
-                continue
-                
-            agent = Agent.query.filter_by(agent_name=agent_name).first()
-            if not agent:
-                logger.warning(f"Agent {agent_name} not found for tool mapping")
-                continue
-                
-            for tool_name in tool_names:
-                tool = Tool.query.filter_by(name=tool_name).first()
-                if not tool:
-                    logger.warning(f"Tool {tool_name} not found for agent {agent_name}")
-                    continue
-                    
-                if tool not in agent.tools:
-                    agent.tools.append(tool)
-                    logger.debug(f"Mapped tool {tool_name} to agent {agent_name}")
-    
-    # Process agent-scope mappings (for default scopes)
-    if 'agent_scopes' in permissions_data:
-        # This would be implemented if you have an association table for agent-scope relationships
-        pass
-    
-    # Process tool-scope mappings (for required scopes)
-    if 'tool_scopes' in permissions_data:
-        # This would be implemented if you have an association table for tool-scope relationships
-        pass
-    
-    try:
-        db.session.commit()
-        logger.info("Applied permission mappings from configuration")
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error applying permission mappings: {str(e)}")
+
+    users_data = config_data['users']
+    created_count = 0
+
+    for user_data in users_data:
+        username = user_data.get('username')
+        email = user_data.get('email')
+        if not username or not email:
+            logger.warning("Skipping user entry missing username/email")
+            continue
+
+        # Check if user already exists
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            logger.info(f"User {username} already exists, skipping")
+            continue
+
+        try:
+            attrs = {}
+            if 'partner' in user_data:
+                attrs['partner'] = user_data['partner']
+
+            # Resolve scope and policy names to IDs if necessary
+            scope_ids = []
+            from app.db.models.scope import Scope
+            for s in user_data.get('scopes', []) or []:
+                if len(s) == 36 and "-" in s:
+                    scope_ids.append(s)
+                else:
+                    scope_obj = Scope.query.filter_by(name=s).first()
+                    if scope_obj:
+                        scope_ids.append(scope_obj.scope_id)
+            policy_ids = []
+            from app.db.models.policy import Policy
+            for p in user_data.get('policies', []) or []:
+                if len(p) == 36 and "-" in p:
+                    policy_ids.append(p)
+                else:
+                    pol_obj = Policy.query.filter_by(name=p).first()
+                    if pol_obj:
+                        policy_ids.append(pol_obj.policy_id)
+
+            User.create(
+                username=username,
+                email=email,
+                full_name=user_data.get('full_name'),
+                hashed_password=user_data.get('hashed_password'),
+                is_external=user_data.get('is_external', False),
+                department=user_data.get('department'),
+                job_title=user_data.get('job_title'),
+                level=user_data.get('level'),
+                attributes=attrs if attrs else None,
+                scope_ids=scope_ids if scope_ids else None,
+                policy_ids=policy_ids if policy_ids else None,
+            )
+            created_count += 1
+        except Exception as e:
+            logger.error(f"Error creating user {username}: {str(e)}")
+
+    if created_count:
+        logger.info(f"Created {created_count} users from configuration")

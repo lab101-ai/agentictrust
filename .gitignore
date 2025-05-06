@@ -94,3 +94,8 @@ platform/next-env.d.ts
 platform/.DS_Store
 platform/*.pem
 platform/.env* 
+
+
+# Local AgenticTrust database directory
+.agentictrust/*
+*.db.agentictrust/*

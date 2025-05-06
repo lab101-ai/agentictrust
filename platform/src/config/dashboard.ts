@@ -1,13 +1,18 @@
 // Dashboard configuration
 
 import { 
+  Bot, 
   BarChart, 
   Users, 
   Wrench, 
   Key, 
   Shield, 
-  ClipboardList 
+  ClipboardList,
+  Globe,
 } from "lucide-react";
+
+// Import additional icon
+import { FileCode } from "lucide-react";
 
 // Define tab configuration
 export const dashboardTabs = [
@@ -20,7 +25,7 @@ export const dashboardTabs = [
   { 
     id: "agents", 
     label: "Agents",
-    icon: Users,
+    icon: Bot,
     description: "View and manage AI agents" 
   },
   { 
@@ -30,16 +35,28 @@ export const dashboardTabs = [
     description: "Configure agent tools and capabilities" 
   },
   { 
+    id: "scopes", 
+    label: "Scopes",
+    icon: Shield,
+    description: "Control permission scopes and access levels" 
+  },
+  { 
+    id: "policies", 
+    label: "Policies",
+    icon: FileCode,
+    description: "Manage attribute-based access control policies" 
+  },
+  { 
     id: "tokens", 
     label: "Tokens",
     icon: Key,
     description: "Manage access tokens and sessions" 
   },
   { 
-    id: "scopes", 
-    label: "Scopes",
-    icon: Shield,
-    description: "Control permission scopes and access levels" 
+    id: "users",
+    label: "Users",
+    icon: Users,
+    description: "Manage platform users"
   },
   { 
     id: "audit", 

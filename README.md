@@ -143,7 +143,7 @@ GET /.well-known/oauth-authorization-server
 
 2. Using Poetry (recommended):
    ```
-   ./setup-poetry.sh
+   ./scripts/setup-poetry.sh
    poetry shell
    ```
 

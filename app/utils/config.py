@@ -1,23 +1,32 @@
 import os
 import yaml
 from typing import Dict, Any, Optional
+import pathlib
 
 def load_config(config_name: str, environment: Optional[str] = None) -> Dict[str, Any]:
     """
     Load configuration from YAML files in the configs directory.
     
     Args:
-        config_name: Name of the config file without extension (e.g., 'logging', 'flask')
+        config_name: Name of the config file without extension (e.g., 'logging', 'api')
         environment: Environment to load (development, testing, production)
-                     If None, uses the FLASK_ENV environment variable or defaults to 'development'
+                     If None, uses the APP_ENV environment variable or defaults to 'development'
     
     Returns:
         Dict containing the merged configuration
     """
     if environment is None:
-        environment = os.environ.get('FLASK_ENV', 'development')
+        environment = os.environ.get('APP_ENV', 'development')
     
-    config_path = os.path.join(os.getcwd(), 'configs', f'{config_name}.yml')
+    # Find the project root directory (parent directory of the app package)
+    app_dir = pathlib.Path(__file__).parent.parent  # utils -> app
+    project_root = app_dir.parent  # app -> project_root
+    
+    # Use absolute path to configs directory
+    config_path = os.path.join(project_root, 'configs', f'{config_name}.yml')
+    
+    # For debugging
+    print(f"Looking for config file at: {config_path}")
     
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Configuration file not found: {config_path}")

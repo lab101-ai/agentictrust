@@ -13,7 +13,9 @@ import {
   ToolsTab, 
   TokensTab,
   ScopesTab,
-  AuditTab
+  AuditTab,
+  PoliciesTab,
+  UsersTab
 } from "@/components/dashboard/tabs";
 
 export default function DashboardPage() {
@@ -49,7 +51,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <main className="flex min-h-screen flex-col p-6">
+    <main className="flex flex-col">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
         <Button 
@@ -66,11 +68,12 @@ export default function DashboardPage() {
       
       <div className="mt-4">
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="grid grid-cols-6 w-[720px]">
+          <TabsList className="grid grid-cols-8 w-full max-w-[960px] overflow-x-auto">
             {dashboardTabs.map((tab) => (
               <TabsTrigger key={tab.id} value={tab.id}>
-                <tab.icon className="mr-2 h-4 w-4" />
-                {tab.label}
+                <tab.icon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sr-only">{tab.label}</span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -97,8 +100,16 @@ export default function DashboardPage() {
               <ScopesTab />
             </TabsContent>
             
+            <TabsContent value="policies">
+              <PoliciesTab />
+            </TabsContent>
+            
             <TabsContent value="audit">
               <AuditTab />
+            </TabsContent>
+            
+            <TabsContent value="users">
+              <UsersTab />
             </TabsContent>
           </div>
         </Tabs>

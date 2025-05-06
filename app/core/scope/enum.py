@@ -1,0 +1,25 @@
+"""
+Enumerations for scope actions.
+"""
+from enum import Enum
+
+class ScopeAction(str, Enum):
+    READ = "read"
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+    SEND = "send"
+    LIST = "list"
+    ADMIN = "admin"
+    EXPORT = "export"
+    WRITE = "write"
+    INVITE = "invite"
+    REGISTER = "register"
+    SUSPEND = "suspend"
+    EXCHANGE = "exchange"
+    INTROSPECT = "introspect"
+    REVOKE = "revoke"
+    LAUNCH = "launch"
+    PAUSE = "pause"
+    RESUME = "resume"
+    CANCEL = "cancel"

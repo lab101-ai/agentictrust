@@ -5,10 +5,11 @@ import { AuditLog, AuditAPI } from "@/lib/api";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+// Badge import removed as we're using StatusBadge component
+import { StatusBadge } from "@/components/ui/icon-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ClipboardList } from "lucide-react";
 import LogActions from "@/components/dashboard/LogActions";
 
 // Helper function to format event types for display
@@ -18,6 +19,8 @@ function formatEventType(eventType: string): string {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
+
+import { formatTimeAgo } from "@/lib/utils";
 
 export function AuditTab() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -45,8 +48,15 @@ export function AuditTab() {
   return (
     <Card id="audit-logs">
       <CardHeader>
-        <CardTitle>Audit Logs</CardTitle>
-        <CardDescription>View system activity and security events</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Audit Logs</CardTitle>
+            <CardDescription>View system activity and security events</CardDescription>
+          </div>
+          <div className="flex gap-2">
+            {/* No actions for audit logs */}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {error ? (
@@ -67,11 +77,11 @@ export function AuditTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Timestamp</TableHead>
+                    <TableHead>Event Type</TableHead>
+                    <TableHead>Time</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Task ID</TableHead>
                     <TableHead>Parent Task</TableHead>
-                    <TableHead>Event Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -79,7 +89,16 @@ export function AuditTab() {
                 <TableBody>
                   {logs.map((log) => (
                     <TableRow key={log.log_id}>
-                      <TableCell>{new Date(log.timestamp).toLocaleString()}</TableCell>
+                      <TableCell>{formatEventType(log.event_type)}</TableCell>
+                      <TableCell>
+                        {log.timestamp ? (
+                          <span title={new Date(log.timestamp).toLocaleString()}>
+                            {formatTimeAgo(log.timestamp)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Unknown</span>
+                        )}
+                      </TableCell>
                       <TableCell className="font-mono text-xs">{log.client_id.substring(0, 8)}...</TableCell>
                       <TableCell className="font-mono text-xs">
                         {log.task_id ? log.task_id.substring(0, 8) + '...' : 'N/A'}
@@ -87,17 +106,14 @@ export function AuditTab() {
                       <TableCell className="font-mono text-xs">
                         {log.parent_task_id ? log.parent_task_id.substring(0, 8) + '...' : 'N/A'}
                       </TableCell>
-                      <TableCell>{formatEventType(log.event_type)}</TableCell>
                       <TableCell>
-                        <Badge 
-                          variant={
-                            log.status === "success" ? "default" : 
-                            log.status === "failed" ? "destructive" : 
-                            "secondary"
-                          }
-                        >
-                          {log.status}
-                        </Badge>
+                        {log.status === "success" ? (
+                          <StatusBadge subtype="success">{log.status}</StatusBadge>
+                        ) : log.status === "failed" ? (
+                          <StatusBadge subtype="error">{log.status}</StatusBadge>
+                        ) : (
+                          <StatusBadge subtype="pending">{log.status}</StatusBadge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <LogActions log={log} />

@@ -1,0 +1,34 @@
+# Platform users relevant to partner data flow
+users:
+  - username: amit_cisco
+    email: amit@cisco.com
+    full_name: Amit
+    department: Partnerships
+    job_title: Account Manager
+    is_active: true
+    is_external: true
+    partner: EPlus
+    policies:
+      - partner_data_read_policy
+
+  - username: alice_google
+    email: alice@google.com
+    full_name: Alice
+    department: Partnerships
+    job_title: Account Manager
+    is_active: true
+    is_external: true
+    partner: Google
+    policies:
+      - partner_data_read_policy
+
+  - username: support_demo_user
+    email: support@demo.com
+    full_name: Support Demo
+    department: Support
+    job_title: Support Engineer
+    is_active: true
+    is_external: false
+    partner: Workspan
+    policies:
+      - support_ticket_policy

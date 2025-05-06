@@ -1,0 +1,166 @@
+# ABAC Policies focused on partner data access
+policies:
+  - name: partner_data_read_policy
+    description: "Allow agents with audience=workspan to read partner data (deals & telemetry)"
+    scopes:
+      - deals.read
+      - lci_telemetry.read
+    conditions:
+      and:
+        - attribute: token.aud
+          operator: eq
+          value: workspan
+        - attribute: scopes
+          operator: contains_all
+          value:
+            - deals.read
+            - lci_telemetry.read
+    effect: allow
+    priority: 30
+
+  - name: partner_data_partner_match
+    description: "Ensure agent only accesses partner data that matches user.partner claim"
+    scopes:
+      - deals.read
+      - lci_telemetry.read
+    conditions:
+      and:
+        - attribute: request.partner
+          operator: eq
+          value_from: token.partner
+    effect: allow
+    priority: 32
+
+  - name: deny_cross_partner_data_access
+    description: "Deny partner data access when partner param does not match token.partner"
+    conditions:
+      and:
+        - attribute: scopes
+          operator: contains_any
+          value:
+            - deals.read
+            - lci_telemetry.read
+        - attribute: request.partner
+          operator: ne
+          value_from: token.partner
+    effect: deny
+    priority: 33
+
+  - name: partner_metrics_policy
+    description: "Allow read of partner metrics scopes"
+    scopes:
+      - partner.adoption_score.read
+      - partner.usage_telemetry.read
+    conditions: {}
+    effect: allow
+    priority: 35
+
+  - name: deals_full_policy
+    description: "Allow full CRUD/export on deals for authorized actors"
+    scopes:
+      - deals.read
+      - deals.create
+      - deals.update
+      - deals.delete
+      - deals.export
+    conditions: {}
+    effect: allow
+    priority: 36
+
+  - name: lci_telemetry_policy
+    description: "Allow read/write of LCI telemetry scopes"
+    scopes:
+      - lci.raw.read
+      - lci.summary.read
+      - lci.raw.write
+      - lci_telemetry.read
+    conditions: {}
+    effect: allow
+    priority: 37
+
+  - name: partner_directory_policy
+    description: "Allow partner directory operations"
+    scopes:
+      - partner.profile.read
+      - partner.profile.update
+      - partner.user.invite
+    conditions: {}
+    effect: allow
+    priority: 38
+
+  - name: agent_registry_policy
+    description: "Allow agent registry operations"
+    scopes:
+      - agent.registry.read
+      - agent.registry.register
+      - agent.registry.suspend
+    conditions: {}
+    effect: allow
+    priority: 39
+
+  - name: support_ticket_policy
+    description: "Allow support tool to read and create tickets"
+    scopes:
+      - support:ticket.read
+      - support:ticket.create
+    conditions:
+      and:
+        - attribute: token.client_name
+          operator: eq
+          value: support_demo_v2
+    effect: allow
+    priority: 40
+
+  - name: token_service_policy
+    description: "Allow token service operations for trusted agents"
+    scopes:
+      - token.exchange
+      - token.introspect
+      - token.revoke
+    conditions: {}
+    effect: allow
+    priority: 41
+
+  - name: workflow_policy
+    description: "Allow workflow instance operations"
+    scopes:
+      - workflow.launch
+      - workflow.pause
+      - workflow.cancel
+    conditions: {}
+    effect: allow
+    priority: 42
+
+  - name: object_store_policy
+    description: "Allow object store read/write"
+    scopes:
+      - object.read
+      - object.write
+    conditions: {}
+    effect: allow
+    priority: 43
+
+  - name: observability_policy
+    description: "Allow observability operations"
+    scopes:
+      - audit_log.read
+      - metrics.export
+    conditions: {}
+    effect: allow
+    priority: 44
+
+  - name: admin_config_policy
+    description: "Allow admin configuration and vault read"
+    scopes:
+      - config.read
+      - config.update
+      - vault.read
+    conditions: {}
+    effect: allow
+    priority: 45
+
+  - name: deny_all_others
+    description: "Deny all operations not explicitly permitted"
+    conditions: {}
+    effect: deny
+    priority: 1000

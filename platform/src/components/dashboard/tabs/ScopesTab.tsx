@@ -3,20 +3,25 @@
 import { useState, useEffect } from "react";
 import { Scope, ScopeAPI } from "@/lib/api";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+// Badge import removed as we're using specialized badge components
+import { IconBadge, StatusBadge, SecurityBadge, ResourceBadge } from "@/components/ui/icon-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Shield, Plus } from "lucide-react";
 import ScopeActions from "@/components/dashboard/ScopeActions";
-import { RegisterScopeDialog } from "@/components/dashboard/RegisterScopeDialog";
+import Link from "next/link";
+
+import { formatTimeAgo } from "@/lib/utils";
 
 export function ScopesTab() {
   const [scopes, setScopes] = useState<Scope[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const router = useRouter();
 
   const fetchScopes = async () => {
     setLoading(true);
@@ -38,12 +43,22 @@ export function ScopesTab() {
 
   return (
     <Card id="scopes">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>OAuth Scopes</CardTitle>
-          <CardDescription>Manage available scopes and their permissions</CardDescription>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>OAuth Scopes</CardTitle>
+            <CardDescription>Manage available scopes and their permissions</CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => router.push('/dashboard/scopes/new')} 
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Scope
+            </Button>
+          </div>
         </div>
-        <RegisterScopeDialog onScopeAdded={fetchScopes} />
       </CardHeader>
       <CardContent>
         {error ? (
@@ -69,6 +84,7 @@ export function ScopesTab() {
                     <TableHead>Category</TableHead>
                     <TableHead>Options</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -78,25 +94,40 @@ export function ScopesTab() {
                       <TableCell className="font-medium">{scope.name}</TableCell>
                       <TableCell className="max-w-[300px] truncate">{scope.description}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{scope.category}</Badge>
+                        <ResourceBadge 
+                          subtype={scope.category.toLowerCase().includes('read') ? 'document' : 
+                                 scope.category.toLowerCase().includes('write') ? 'code' : 
+                                 scope.category.toLowerCase().includes('admin') ? 'database' : 'api'}
+                        >
+                          {scope.category}
+                        </ResourceBadge>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {scope.is_default === true && (
-                            <Badge variant="secondary" className="text-xs">Default</Badge>
+                            <SecurityBadge subtype="unlocked" className="text-xs">Default</SecurityBadge>
                           )}
                           {scope.is_sensitive === true && (
-                            <Badge variant="destructive" className="text-xs">Sensitive</Badge>
+                            <SecurityBadge subtype="warning" className="text-xs">Sensitive</SecurityBadge>
                           )}
                           {scope.requires_approval === true && (
-                            <Badge variant="outline" className="text-xs">Approval Required</Badge>
+                            <SecurityBadge subtype="locked" className="text-xs">Approval Required</SecurityBadge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={scope.is_active !== false ? "default" : "secondary"}>
+                        <StatusBadge subtype={scope.is_active !== false ? "success" : "inactive"}>
                           {scope.is_active !== false ? "Active" : "Inactive"}
-                        </Badge>
+                        </StatusBadge>
+                      </TableCell>
+                      <TableCell>
+                        {scope.created_at ? (
+                          <span title={new Date(scope.created_at).toLocaleString()}>
+                            {formatTimeAgo(scope.created_at)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Unknown</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <ScopeActions scope={scope} onUpdate={fetchScopes} />

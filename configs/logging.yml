@@ -2,10 +2,16 @@ version: 1
 
 default:
   level: "INFO"
-  format: "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}"
+  format: "{time:YYYY-MM-DD HH:mm:ss} | <level>{level: <8}</level> | {name}:{function}:{line} - {message}"
   rotation: "10 MB"
   retention: "1 week"
   compression: "zip"
+  colors:
+    DEBUG: "<blue>"
+    INFO: "<green>"
+    WARNING: "<yellow>"
+    ERROR: "<red>"
+    CRITICAL: "<bold><red>"
 
 environments:
   development:
@@ -25,7 +31,7 @@ environments:
     sinks:
       console:
         level: "WARNING"
-        colorize: false
+        colorize: true
       file:
         level: "INFO"
         path: "logs/app.log"
@@ -39,23 +45,26 @@ environments:
 
 loggers:
   app:
-    level: "INFO"
-  
-  app.api:
     level: "DEBUG"
-    
-  app.utils.oauth:
-    level: "DEBUG"
-    sinks:
-      file:
-        path: "logs/oauth.log"
-        rotation: "10 MB"
-        retention: "1 month"
 
-  app.agents:
-    level: "DEBUG"
-    sinks:
-      file:
-        path: "logs/agents.log"
-        rotation: "10 MB"
-        retention: "1 month" 
+  app.core:
+    level: "DEBUG"  
+    
+  # app.api:
+  #   level: "DEBUG"
+    
+  # app.core.oauth:
+  #   level: "DEBUG"
+  #   sinks:
+  #     file:
+  #       path: "logs/oauth.log"
+  #       rotation: "10 MB"
+  #       retention: "1 month"
+
+  # app.agents:
+  #   level: "DEBUG"
+  #   sinks:
+  #     file:
+  #       path: "logs/agents.log"
+  #       rotation: "10 MB"
+  #       retention: "1 month" 

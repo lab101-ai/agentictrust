@@ -5,25 +5,32 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Users, Wrench, Key, Shield, History, BarChart } from "lucide-react";
-import { DashboardStats, StatsAPI, AuditAPI, AuditLog, ScopeAPI, Scope } from "@/lib/api";
+import { AlertCircle, Bot, Users, Wrench, Key, FileCode, History, BarChart, Globe } from "lucide-react";
+import { DashboardStats, StatsAPI, AuditAPI, AuditLog, ScopeAPI, Scope, DiscoveryAPI, OIDCConfiguration, JWKS } from "@/lib/api";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+// Badge import removed in favor of IconBadge components
+import { StatusBadge } from "@/components/ui/icon-badge";
 
 export function OverviewTab() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentLogs, setRecentLogs] = useState<AuditLog[]>([]);
   const [sensitiveScopes, setSensitiveScopes] = useState<Scope[]>([]);
+  const [currentTime, setCurrentTime] = useState<string>("");
+  const [discoveryConfig, setDiscoveryConfig] = useState<OIDCConfiguration | null>(null);
+  const [jwks, setJwks] = useState<JWKS | null>(null);
   const [loading, setLoading] = useState({
     stats: false,
     logs: false,
-    scopes: false
+    scopes: false,
+    policies: false,
+    discovery: false
   });
   const [error, setError] = useState({
     stats: false,
     logs: false,
-    scopes: false
+    scopes: false,
+    policies: false,
+    discovery: false
   });
 
   // Fetch stats
@@ -72,6 +79,27 @@ export function OverviewTab() {
     }
   };
 
+  // Fetch discovery endpoints
+  const fetchDiscoveryData = async () => {
+    setLoading(prev => ({ ...prev, discovery: true }));
+    setError(prev => ({ ...prev, discovery: false }));
+    try {
+      // Fetch OpenID Configuration
+      const configData = await DiscoveryAPI.getOIDCConfiguration();
+      setDiscoveryConfig(configData);
+      
+      // Fetch JWKS
+      const jwksData = await DiscoveryAPI.getJWKS();
+      setJwks(jwksData);
+    } catch (err) {
+      setError(prev => ({ ...prev, discovery: true }));
+      console.error("Failed to fetch discovery endpoints:", err);
+      // No toast for this to avoid overwhelming the user
+    } finally {
+      setLoading(prev => ({ ...prev, discovery: false }));
+    }
+  };
+
   // Function to format event types for display
   const formatEventType = (eventType: string): string => {
     return eventType
@@ -84,48 +112,64 @@ export function OverviewTab() {
     fetchStats();
     fetchRecentLogs();
     fetchSensitiveScopes();
+    fetchDiscoveryData();
+    
+    // Initialize the current time for client-side only
+    setCurrentTime(new Date().toLocaleTimeString());
+    
+    // Update time every minute
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString());
+    }, 60000);
 
     // Set up refresh listener
     const handleRefresh = () => {
       fetchStats();
       fetchRecentLogs();
       fetchSensitiveScopes();
+      fetchDiscoveryData();
+      setCurrentTime(new Date().toLocaleTimeString());
     };
 
     window.addEventListener('dashboard:refresh', handleRefresh);
-    return () => window.removeEventListener('dashboard:refresh', handleRefresh);
+    return () => {
+      window.removeEventListener('dashboard:refresh', handleRefresh);
+      clearInterval(timeInterval);
+    };
   }, []);
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
-          title="Registered Agents"
+          title="Agents"
           value={loading.stats ? undefined : stats?.agents_count}
           description="Total agents in the system"
-          icon={<Users className="h-5 w-5" />}
-          trend="+2 this month"
+          icon={<Bot className="h-5 w-5" />}
         />
         <StatsCard
-          title="Available Tools"
+          title="Tools"
           value={loading.stats ? undefined : stats?.tools_count}
           description="Tools ready for agent use"
           icon={<Wrench className="h-5 w-5" />}
-          trend="+5 this month"
         />
         <StatsCard
-          title="Active Tokens"
+          title="Tokens"
           value={loading.stats ? undefined : stats?.active_tokens_count}
           description="Currently valid OAuth tokens"
           icon={<Key className="h-5 w-5" />}
-          trend="+12 this week"
         />
         <StatsCard
-          title="Total Tokens"
-          value={loading.stats ? undefined : stats?.tokens_count}
-          description="All time token count"
-          icon={<BarChart className="h-5 w-5" />}
-          trend="+23% from last month"
+          title="Policies"
+          value={loading.stats ? undefined : stats?.policies_count}
+          description="Active access policies"
+          icon={<FileCode className="h-5 w-5" />}
+        />
+        <StatsCard
+          title="Users"
+          value={loading.stats ? undefined : stats?.users_count}
+          description="Total platform users"
+          icon={<Users className="h-5 w-5" />}
         />
       </div>
 
@@ -155,183 +199,191 @@ export function OverviewTab() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center pb-2 border-b">
                   <span className="text-sm font-medium">Service Status</span>
-                  <span className="text-sm">Last updated: {new Date().toLocaleTimeString()}</span>
+                  <span className="text-sm">Last updated: {currentTime}</span>
                 </div>
                 
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">API Services</span>
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  <StatusBadge subtype="success" colorClassName="bg-green-50 text-green-700 border-green-200">
                     Operational
-                  </Badge>
+                  </StatusBadge>
                 </div>
                 
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Authentication</span>
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  <StatusBadge subtype="success" colorClassName="bg-green-50 text-green-700 border-green-200">
                     Operational
-                  </Badge>
+                  </StatusBadge>
                 </div>
                 
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Tool Integration</span>
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  <StatusBadge subtype="success" colorClassName="bg-green-50 text-green-700 border-green-200">
                     Operational
-                  </Badge>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Scope Management</span>
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    Operational
-                  </Badge>
+                  </StatusBadge>
                 </div>
                 
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Audit Logging</span>
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  <StatusBadge subtype="success" colorClassName="bg-green-50 text-green-700 border-green-200">
                     Operational
-                  </Badge>
+                  </StatusBadge>
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Recent Activity
-            </CardTitle>
-            <CardDescription>Latest actions across the platform</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error.logs ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error loading activity</AlertTitle>
-                <AlertDescription>Unable to fetch recent activities.</AlertDescription>
-              </Alert>
-            ) : loading.logs ? (
-              <div className="space-y-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {recentLogs.length > 0 ? (
-                  <div className="space-y-2">
-                    {recentLogs.map((log) => (
-                      <div key={log.log_id} className="flex justify-between items-center border-b pb-2">
-                        <div>
-                          <div className="text-sm font-medium">{formatEventType(log.event_type)}</div>
-                          <div className="text-xs text-muted-foreground">
-                            Client: {log.client_id.substring(0, 8)}...
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge 
-                            variant={
-                              log.status === "success" ? "default" : 
-                              log.status === "failed" ? "destructive" : 
-                              "secondary"
-                            }
-                            className="text-xs"
-                          >
-                            {log.status}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(log.timestamp).toLocaleTimeString()}
-                          </span>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Recent Activity
+          </CardTitle>
+          <CardDescription>Latest actions across the platform</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error.logs ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error loading activity</AlertTitle>
+              <AlertDescription>Unable to fetch recent activities.</AlertDescription>
+            </Alert>
+          ) : loading.logs ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recentLogs.length > 0 ? (
+                <div className="space-y-2">
+                  {recentLogs.map((log) => (
+                    <div key={log.log_id} className="flex justify-between items-center border-b pb-2">
+                      <div>
+                        <div className="text-sm font-medium">{formatEventType(log.event_type)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Client: {log.client_id.substring(0, 8)}...
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-muted-foreground">No recent activity</div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge 
+                          subtype={log.status === "success" ? "success" : 
+                                  log.status === "failed" ? "error" : 
+                                  "info"}
+                          className="text-xs"
+                        />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Security & Permissions
-            </CardTitle>
-            <CardDescription>Sensitive scopes and permission insights</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error.scopes ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error loading scope data</AlertTitle>
-                <AlertDescription>Unable to fetch sensitive scopes.</AlertDescription>
-              </Alert>
-            ) : loading.scopes ? (
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground">No recent activity</div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Discovery Endpoints */}
+      <Card className="md:col-span-3 lg:col-span-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            API Discovery
+          </CardTitle>
+          <CardDescription>OpenID Connect discovery endpoints</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error.discovery ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error loading discovery endpoints</AlertTitle>
+              <AlertDescription>Unable to fetch OpenID Connect discovery information.</AlertDescription>
+            </Alert>
+          ) : loading.discovery ? (
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          ) : (
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-20 w-full" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="border-b pb-2">
-                  <h4 className="text-sm font-medium">Sensitive Scopes</h4>
-                  <p className="text-xs text-muted-foreground">Scopes that require special handling</p>
+                <div className="flex justify-between items-center pb-2 border-b">
+                  <span className="text-sm font-medium">Discovery Endpoints</span>
                 </div>
-                
-                {sensitiveScopes.length > 0 ? (
-                  <div className="space-y-2">
-                    {sensitiveScopes.map((scope) => (
-                      <div key={scope.scope_id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="destructive" className="text-xs">Sensitive</Badge>
-                          <span className="text-sm font-medium">{scope.name}</span>
-                        </div>
-                        <div>
-                          <Badge variant="outline" className="text-xs">{scope.category}</Badge>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <div className="text-sm font-medium">OpenID Configuration</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      <a 
+                        href="/api/discovery?endpoint=.well-known/openid-configuration" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="truncate text-blue-600 hover:underline inline-block max-w-full"
+                      >
+                        {`/.well-known/openid-configuration`}
+                      </a>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-sm font-medium">JSON Web Key Set</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      <a 
+                        href="/api/discovery?endpoint=.well-known/jwks.json" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="truncate text-blue-600 hover:underline inline-block max-w-full"
+                      >
+                        {`/.well-known/jwks.json`}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                {discoveryConfig && (
+                  <>
+                    <div className="mt-4 pt-2 border-t text-sm font-medium">
+                      Supported Capabilities
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <div>
+                        <div className="text-xs font-medium">Response Types</div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {discoveryConfig.response_types_supported.map(type => (
+                            <span key={type} className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100">
+                              {type}
+                            </span>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-muted-foreground">No sensitive scopes defined</div>
+                      <div>
+                        <div className="text-xs font-medium">Grant Types</div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {discoveryConfig.grant_types_supported.map(type => (
+                            <span key={type} className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100">
+                              {type}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
                 )}
-                
-                <div className="border-t pt-4 mt-4">
-                  <h4 className="text-sm font-medium mb-2">Security Metrics</h4>
-                  
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Token Security</span>
-                        <span className="text-sm font-medium">85%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '85%' }}></div>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Scope Coverage</span>
-                        <span className="text-sm font-medium">72%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: '72%' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
-  );
+  </div>
+);
 }

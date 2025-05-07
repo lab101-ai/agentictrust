@@ -114,6 +114,7 @@
         <button class="tablink" onclick="openTab(event,'deals')">Deals</button>
         <button class="tablink" onclick="openTab(event,'analytics')">Analytics</button>
         <button class="tablink" onclick="openTab(event,'users')">Users</button>
+        <a href="http://localhost:8502/" target="_blank" class="tablink" style="background-color: #17a2b8; color: white; text-decoration: none;">AI Chat Assistant</a>
       </div>
 
       <div id="partners" class="tabcontent">
@@ -121,7 +122,12 @@
         <table>
           <tr><th>ID</th><th>Name</th><th>Tier</th><th>HQ Country</th></tr>
           {% for p in partners %}
-          <tr><td>{{ p[0] }}</td><td>{{ p[1] }}</td><td>{{ p[2] }}</td><td>{{ p[3] }}</td></tr>
+          <tr>
+            <td>{{ p.partner_id }}</td>
+            <td>{{ p.partner_name }}</td>
+            <td>{{ p.partner_tier }}</td>
+            <td>{{ p.country }}</td>
+          </tr>
           {% endfor %}
         </table>
       </div>
@@ -131,7 +137,12 @@
         <table>
           <tr><th>ID</th><th>Name</th><th>Segment</th><th>Family</th></tr>
           {% for pr in products %}
-          <tr><td>{{ pr[0] }}</td><td>{{ pr[1] }}</td><td>{{ pr[2] }}</td><td>{{ pr[3] }}</td></tr>
+          <tr>
+            <td>{{ pr.product_id }}</td>
+            <td>{{ pr.product_name }}</td>
+            <td>{{ pr.segment }}</td>
+            <td>{{ pr.family }}</td>
+          </tr>
           {% endfor %}
         </table>
       </div>
@@ -141,7 +152,13 @@
         <table>
           <tr><th>ID</th><th>Partner</th><th>Amount</th><th>Stage</th><th>Owner</th></tr>
           {% for d in deals %}
-          <tr><td>{{ d[0] }}</td><td>{{ d[1] }}</td><td>{{ '{:,.0f}'.format(d[2]) }}</td><td>{{ d[3] }}</td><td>{{ d[4] }}</td></tr>
+          <tr><td>{{ d.deal_id }}</td><td>{{ d.partner_name }}</td><td>
+            {% if d.amount_usd is defined and d.amount_usd is not none %}
+              {{ '{:,.0f}'.format(d.amount_usd) }}
+            {% else %}
+              N/A
+            {% endif %}
+          </td><td>{{ d.stage }}</td><td>{{ d.owner_email }}</td></tr>
           {% endfor %}
         </table>
       </div>
@@ -200,7 +217,14 @@
       <div id="users" class="tabcontent" style="display:none">
         <h2>Users</h2>
         <table><tr><th>ID</th><th>Email</th><th>Name</th><th>Department</th></tr>
-          {% for u in users %}<tr><td>{{ u[0] }}</td><td>{{ u[1] }}</td><td>{{ u[2] }} {{ u[3] }}</td><td>{{ u[4] }}</td></tr>{% endfor %}
+          {% for u in users %}
+          <tr>
+            <td>{{ u.user_id }}</td>
+            <td>{{ u.email }}</td>
+            <td>{{ u.first_name }} {{ u.last_name }}</td>
+            <td>{{ u.department }}</td>
+          </tr>
+          {% endfor %}
         </table>
       </div>
 

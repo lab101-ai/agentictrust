@@ -1,0 +1,7 @@
+crewai==0.118.0
+crewai-tools==0.43.0
+streamlit
+# Add your database driver here, e.g., psycopg2-binary for PostgreSQL
+# or mysql-connector-python for MySQL. sqlite3 is part of Python standard library.
+# Example: python-dotenv for managing environment variables for API keys/DB creds
+python-dotenv>=1.0.0

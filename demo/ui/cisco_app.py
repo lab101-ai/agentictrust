@@ -1,9 +1,27 @@
 """Minimal FastAPI UI for Cisco Operational DB"""
 from pathlib import Path
-import sqlite3
+import os
+import sys
+
+# Ensure project root is in sys.path for 'demo' package imports when executed directly
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+
+# Import functions from cisco_data_tool
+from demo.tools.cisco_data_tool import (
+    init_db_from_sql_file,
+    get_all_partners,
+    get_all_products,
+    get_all_deals,
+    get_deal_summary_analytics,
+    get_all_users,
+    get_owner_performance
+)
 
 # Directories
 ROOT_DIR = Path(__file__).resolve().parent.parent  # demo/
@@ -13,21 +31,33 @@ DATA_DIR.mkdir(exist_ok=True)
 
 BASE_DIR = Path(__file__).resolve().parent  # demo/ui
 DB_FILE = DATA_DIR / "cisco_ops.db"
-INIT_SQL = SQL_DIR / "init_cisco.sql"
 
-def _ensure_db() -> None:
-    """Recreate DB from init script each start for deterministic demo."""
-    if DB_FILE.exists():
-        DB_FILE.unlink()
+def _ensure_db():
     print("[cisco_app] (Re)creating local SQLite DB …")
-    conn = sqlite3.connect(DB_FILE)
-    conn.executescript(INIT_SQL.read_text())
-    conn.close()
+    print(f"DB_FILE path: {DB_FILE}")
+    print(f"DATA_DIR path: {DATA_DIR}")
+    print(f"SQL_DIR path: {SQL_DIR}")
+    
+    # Construct path to init_cisco.sql relative to this file (cisco_app.py)
+    # cisco_app.py is in demo/ui/
+    # init_cisco.sql is in demo/sql/
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    sql_file = os.path.join(current_dir, "..", "sql", "init_cisco.sql")
+    print(f"SQL init file path: {sql_file}")
+    
+    if not os.path.exists(sql_file):
+        print(f"ERROR: SQL init file not found at {sql_file}. DB will not be initialized.")
+        return
+    
+    # Debug the database file path
+    print(f"About to call init_db_from_sql_file with SQL file: {sql_file}")
+    try:
+        init_db_from_sql_file(sql_file) # This function is from cisco_data_tool.py
+        print(f"Database initialization completed successfully")
+    except Exception as e:
+        print(f"ERROR during database initialization: {e}")
 
-_ensure_db()
-
-def get_conn():
-    return sqlite3.connect(DB_FILE)
+_ensure_db() # Ensures DB is created/recreated on startup
 
 app = FastAPI(title="Cisco Operational DB UI")
 
@@ -35,69 +65,24 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    conn = get_conn()
-    cur = conn.cursor()
-    partners = cur.execute("SELECT partner_id, partner_name, partner_tier AS tier, country FROM partners ORDER BY partner_id").fetchall()
-    products = cur.execute("SELECT product_id, product_name, segment, family FROM products ORDER BY product_id").fetchall()
-    deals = cur.execute(
-        """
-        SELECT d.deal_id, p.partner_name, d.amount_usd, d.stage, u.email
-        FROM deals d
-        JOIN partners p USING(partner_id)
-        JOIN users u ON u.user_id = d.owner_user_id
-        ORDER BY d.deal_id
-        LIMIT 100
-        """
-    ).fetchall()
-    total_deals, total_amount = cur.execute("SELECT COUNT(*), COALESCE(SUM(amount_usd),0) FROM deals").fetchone()
-    stage_counts_raw = cur.execute("SELECT stage, COUNT(*) FROM deals GROUP BY stage").fetchall() 
-    analytics = {
-        "total_deals": total_deals,
-        "total_amount": total_amount,
-        "stage_counts": stage_counts_raw, 
-    }
-    users = cur.execute("SELECT user_id, email, first_name, last_name, department FROM users ORDER BY user_id").fetchall()
-
-    owner_stage_details_cur = conn.cursor()
-    owner_stage_details_cur.execute("""
-        SELECT
-            u.user_id,
-            u.first_name,
-            u.last_name,
-            u.email,
-            d.stage,
-            COUNT(d.deal_id) AS stage_deal_count,
-            SUM(d.amount_usd) AS stage_total_amount
-        FROM deals d
-        JOIN users u ON d.owner_user_id = u.user_id
-        GROUP BY u.user_id, u.first_name, u.last_name, u.email, d.stage
-        ORDER BY u.first_name, u.last_name, d.stage
-    """)
+    # Use functions from cisco_data_tool
+    partners = get_all_partners()
+    products = get_all_products()
+    deals = get_all_deals(limit=100) # Default limit in tool is 100
     
-    owner_performance_map = {} 
-    all_stages_list = sorted(list(set(s[0] for s in stage_counts_raw))) 
+    deal_analytics = get_deal_summary_analytics()
+    owner_perf_data = get_owner_performance()
+    users = get_all_users()
 
-    for row in owner_stage_details_cur.fetchall():
-        user_id, first_name, last_name, email, stage, stage_deal_count, stage_total_amount = row
-        
-        if user_id not in owner_performance_map:
-            owner_performance_map[user_id] = {
-                'owner_name': f"{first_name} {last_name} ({email})",
-                'total_amount': 0,
-                'stages': {s_name: 0 for s_name in all_stages_list},
-                'total_deals': 0
-            }
-        
-        owner_performance_map[user_id]['stages'][stage] = stage_deal_count
-        owner_performance_map[user_id]['total_amount'] += (stage_total_amount or 0)
-        owner_performance_map[user_id]['total_deals'] += stage_deal_count
+    # Prepare analytics dictionary for the template
+    analytics = {
+        "total_deals": deal_analytics["total_deals"],
+        "total_amount": deal_analytics["total_amount"],
+        "stage_counts": list(deal_analytics["stage_counts"].items()), # Convert dict to list of tuples for template
+        "owner_performance": owner_perf_data["owner_performance"],
+        "all_stages_list": owner_perf_data["all_stages_list"]
+    }
 
-    processed_owner_performance = sorted(list(owner_performance_map.values()), key=lambda x: x['owner_name'])
-
-    analytics["owner_performance"] = processed_owner_performance
-    analytics["all_stages_list"] = all_stages_list
-
-    conn.close()
     return templates.TemplateResponse(
         "cisco.html",
         {

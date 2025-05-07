@@ -2,13 +2,14 @@
 Scope engine for managing and validating scopes.
 """
 from typing import List, Set, Dict, Any, Optional
+import traceback
+import yaml
+from pathlib import Path
+
 from app.core.scope.utils import validate_scope_name
 from app.core.scope.operations import expand_implied_scopes
 from app.db.models import Scope
-from app.db import db_session
-import yaml
-from pathlib import Path
-import logging
+from app.utils.logger import logger
 
 class ScopeEngine:
     """Core engine for handling scope validation and expansion."""
@@ -21,57 +22,76 @@ class ScopeEngine:
         # Determine the project root (parent of the 'app' directory)
         project_root = Path(__file__).resolve().parents[3]
         data_file = project_root / 'data' / 'scopes.yml'
-        logging.debug("Looking for scopes data file at %s", data_file)
+        logger.debug(f"Looking for scopes data file at {data_file}")
+        
         # If not found, try legacy path inside app/data for backward-compatibility
         if not data_file.exists():
             alt_file = Path(__file__).resolve().parents[2] / 'data' / 'scopes.yml'
             if alt_file.exists():
                 data_file = alt_file
-                logging.debug("Using fallback scopes data file at %s", data_file)
+                logger.debug(f"Using fallback scopes data file at {data_file}")
 
         if not data_file.exists():
-            logging.info("Scope data file not found at %s, skipping initialization.", data_file)
+            logger.info(f"Scope data file not found at {data_file}, skipping initialization.")
             return
 
-        logging.info("Initializing scopes from %s...", data_file)
+        logger.info(f"Initializing scopes from {data_file}...")
+        
+        # Make sure the scopes table exists
         try:
             from sqlalchemy import inspect
             from app.db import init_db, engine as _engine
 
             inspector = inspect(_engine)
             if not inspector.has_table('scopes'):
-                logging.info("'scopes' table missing; running init_db to create tables.")
+                logger.info("'scopes' table missing; running init_db to create tables.")
                 init_db()
         except Exception as e:
-            logging.warning("Could not verify or create 'scopes' table: %s", e)
+            logger.warning(f"Could not verify or create 'scopes' table: {e}")
+            logger.debug(f"Exception details: {traceback.format_exc()}")
 
+        # Load and process scopes from YAML
         try:
             with open(data_file) as f:
                 cfg = yaml.safe_load(f) or {}
+                
             for entry in cfg.get('scopes', []):
                 name = entry.get('name')
                 if not name:
+                    logger.warning("Skipping scope with missing name in configuration")
                     continue
-                if Scope.query.filter_by(name=name).first():
-                    logging.info("Scope '%s' already exists, skipping.", name)
+                    
+                # Check if scope already exists using the model method
+                existing_scope = Scope.query.filter_by(name=name).first()
+                if existing_scope:
+                    logger.info(f"Scope '{name}' already exists, skipping.")
                     continue
 
-                logging.info("Adding scope '%s' from YAML.", name)
-                scope = Scope(
-                    name=name,
-                    description=entry.get('description'),
-                    category=entry.get('category', 'basic'),
-                    is_default=entry.get('is_default', False),
-                    is_sensitive=entry.get('is_sensitive', False),
-                    requires_approval=entry.get('requires_approval', False)
-                )
-                db_session.add(scope)
-            db_session.commit()
-            logging.info("Scope initialization complete.")
+                logger.info(f"Adding scope '{name}' from YAML.")
+                try:
+                    # Let the Scope model handle the database operations
+                    Scope.create(
+                        name=name,
+                        description=entry.get('description'),
+                        category=entry.get('category', 'basic'),
+                        is_default=entry.get('is_default', False),
+                        is_sensitive=entry.get('is_sensitive', False),
+                        requires_approval=entry.get('requires_approval', False)
+                    )
+                    logger.debug(f"Successfully created scope '{name}'")
+                except ValueError as ex:
+                    logger.error(f"Validation error creating scope '{name}': {ex}")
+                    continue
+                except Exception as ex:
+                    logger.error(f"Error creating scope '{name}': {ex}")
+                    logger.debug(f"Exception details: {traceback.format_exc()}")
+                    continue
+                    
+            logger.info("Scope initialization complete.")
         except Exception as e:
-            logging.exception("Failed to initialize scopes from YAML: %s", e)
-            # Depending on requirements, might want to raise the exception
-            # or handle it differently instead of just logging.
+            logger.error(f"Failed to initialize scopes from YAML: {e}")
+            logger.debug(f"Exception details: {traceback.format_exc()}")
+            # We don't re-raise the exception to avoid preventing app startup
 
     # Database-backed scope operations
     def create_scope(
@@ -85,74 +105,122 @@ class ScopeEngine:
         is_active: bool = True
     ) -> Dict[str, Any]:
         """Create a new scope or return existing"""
-        if not name:
-            raise ValueError("name is required")
-        validate_scope_name(name)
-        existing = Scope.query.filter_by(name=name).first()
-        if existing:
-            return existing.to_dict()
-        scope = Scope(
-            name=name,
-            description=description,
-            category=category,
-            is_default=is_default,
-            is_sensitive=is_sensitive,
-            requires_approval=requires_approval,
-            is_active=is_active
-        )
-        db_session.add(scope)
-        db_session.commit()
-        return scope.to_dict()
+        try:
+            if not name:
+                logger.error("Cannot create scope: name is required")
+                raise ValueError("name is required")
+                
+            # Validate scope name format
+            validate_scope_name(name)
+            
+            # Check if scope already exists
+            existing_scope = Scope.query.filter_by(name=name).first()
+            if existing_scope:
+                logger.info(f"Scope with name '{name}' already exists, returning existing scope")
+                return existing_scope.to_dict()
+                
+            # Create the scope using the model's create method
+            logger.info(f"Creating new scope '{name}'")
+            scope = Scope.create(
+                name=name,
+                description=description,
+                category=category,
+                is_default=is_default,
+                is_sensitive=is_sensitive,
+                requires_approval=requires_approval
+            )
+            
+            # Handle is_active separately since it's not part of Scope.create()
+            if not is_active and scope:
+                logger.debug(f"Setting scope '{name}' as inactive")
+                scope.update(is_active=is_active)
+                
+            logger.info(f"Successfully created scope '{name}' (ID: {scope.scope_id})")
+            return scope.to_dict()
+            
+        except ValueError as e:
+            # Re-raise validation errors for proper client handling
+            logger.warning(f"Validation error creating scope '{name}': {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error creating scope '{name}': {e}")
+            logger.debug(f"Exception details: {traceback.format_exc()}")
+            raise RuntimeError(f"Failed to create scope: {str(e)}") from e
 
     def list_scopes(self, level: Optional[str] = None) -> List[Dict[str, Any]]:
         """List all scopes, optionally filtered by level"""
-        if level:
-            scopes = Scope.query.filter_by(category=level).all()
-        else:
-            scopes = Scope.query.all()
-        return [s.to_dict() for s in scopes]
+        try:
+            # Get all scopes using the model method
+            scopes = Scope.list_all()
+            
+            # Apply filter in memory if needed
+            if level:
+                logger.debug(f"Filtering scopes by category: {level}")
+                scopes = [s for s in scopes if s.category == level]
+                
+            result = [s.to_dict() for s in scopes]
+            logger.debug(f"Retrieved {len(result)} scopes" + (f" with category '{level}'" if level else ""))
+            return result
+        except Exception as e:
+            logger.error(f"Error listing scopes: {e}")
+            logger.debug(f"Exception details: {traceback.format_exc()}")
+            raise RuntimeError(f"Failed to list scopes: {str(e)}") from e
 
     def get_scope(self, scope_id: str) -> Dict[str, Any]:
         """Fetch a scope by ID"""
-        scope = Scope.query.get(scope_id)
-        if not scope:
-            raise ValueError("Scope not found")
-        return scope.to_dict()
+        try:
+            # Use the model method to get the scope by ID
+            scope = Scope.get_by_id(scope_id)
+            logger.debug(f"Retrieved scope: {scope.name} (ID: {scope.scope_id})")
+            return scope.to_dict()
+        except ValueError as e:
+            # Re-raise ValueError from model method (e.g., scope not found)
+            raise
+        except Exception as e:
+            logger.error(f"Error retrieving scope {scope_id}: {e}")
+            logger.debug(f"Exception details: {traceback.format_exc()}")
+            raise RuntimeError(f"Failed to retrieve scope: {str(e)}") from e
 
     def update_scope(self, scope_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Update scope properties"""
-        if not data:
-            raise ValueError("No update data provided")
-        scope = Scope.query.get(scope_id)
-        if not scope:
-            raise ValueError("Scope not found")
-        # Rename
-        if 'name' in data:
-            new_name = data['name']
-            validate_scope_name(new_name)
-            existing = Scope.query.filter_by(name=new_name).first()
-            if existing and existing.scope_id != scope_id:
-                raise ValueError("Scope name already exists")
-            scope.name = new_name
-        # Other properties
-        for field in ['description', 'category', 'is_default', 'is_sensitive', 'requires_approval', 'is_active']:
-            if field in data:
-                setattr(scope, field, data[field])
-        db_session.commit()
-        return scope.to_dict()
+        try:
+            if not data:
+                logger.warning(f"No update data provided for scope {scope_id}")
+                raise ValueError("No update data provided")
+                
+            # Validate name if included in update data
+            if 'name' in data:
+                logger.debug(f"Validating updated scope name: {data['name']}")
+                validate_scope_name(data['name'])
+                
+            # Get the scope by ID using the model method
+            scope = Scope.get_by_id(scope_id)
+            
+            # Use the model's update method to handle the database operations
+            updated_scope = scope.update(**data)
+            logger.info(f"Successfully updated scope {scope_id} ({updated_scope.name})")
+            return updated_scope.to_dict()
+        except ValueError as e:
+            # Re-raise ValueError for client handling
+            raise
+        except Exception as e:
+            logger.error(f"Error updating scope {scope_id}: {e}")
+            logger.debug(f"Exception details: {traceback.format_exc()}")
+            raise RuntimeError(f"Failed to update scope: {str(e)}") from e
 
     def delete_scope(self, scope_id: str) -> None:
         """Delete a scope by ID"""
-        scope = Scope.query.get(scope_id)
-        if not scope:
-            raise ValueError("Scope not found")
-        # TODO: If system scopes (e.g., loaded from YAML) should be protected,
-        # add an 'is_system' flag to the Scope model and check it here.
-        # Original check (removed as is_system_scope likely doesn't exist):
-        # if hasattr(scope, 'is_system_scope') and scope.is_system_scope():
-        #     raise ValueError("Cannot delete system scopes")
-        db_session.delete(scope)
-        db_session.commit()
+        try:
+            # Use the model's method directly, which already has error handling
+            Scope.delete_by_id(scope_id)
+            logger.info(f"Successfully deleted scope {scope_id}")
+        except ValueError as e:
+            # Re-raise ValueError for client handling (e.g., scope not found)
+            raise
+        except Exception as e:
+            logger.error(f"Error deleting scope {scope_id}: {e}")
+            logger.debug(f"Exception details: {traceback.format_exc()}")
+            raise RuntimeError(f"Failed to delete scope: {str(e)}") from e
 
     def expand(self, scopes: List[str]) -> Set[str]:
         """Expand scopes to include implied permissions."""

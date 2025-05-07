@@ -8,6 +8,9 @@ from app.db.models import User, Agent, Tool, Scope, Policy
 from app.core.users.engine import UserEngine
 from app.core.agents.engine import AgentEngine
 from app.core.tools.engine import ToolEngine
+from app.core.scope.engine import ScopeEngine
+from app.core.policy.engine import PolicyEngine
+from app.core.oauth.engine import OAuthEngine
 
 @pytest.fixture(scope="session")
 def test_db():
@@ -43,6 +46,21 @@ def agent_engine():
 def tool_engine():
     """Provide a ToolEngine instance."""
     return ToolEngine()
+
+@pytest.fixture
+def scope_engine():
+    """Provide a ScopeEngine instance."""
+    return ScopeEngine()
+
+@pytest.fixture
+def policy_engine():
+    """Provide a PolicyEngine instance."""
+    return PolicyEngine()
+
+@pytest.fixture
+def oauth_engine():
+    """Provide a OAuthEngine instance."""
+    return OAuthEngine()
 
 @pytest.fixture
 def sample_scope(test_db):

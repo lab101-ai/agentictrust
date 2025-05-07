@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  cisco_db:
+    image: sqlite
+    container_name: cisco_db
+    volumes:
+      - ./cisco_ops_data:/data
+      - ./sql/init_cisco.sql:/docker-entrypoint-initdb.d/init_cisco.sql:ro
+    command: ["sqlite3", "/data/cisco_ops.db", ".read /docker-entrypoint-initdb.d/init_cisco.sql"]
+
+  workspan_db:
+    image: sqlite
+    container_name: workspan_db
+    volumes:
+      - ./workspan_core_data:/data
+      - ./sql/init_workspan.sql:/docker-entrypoint-initdb.d/init_workspan.sql:ro
+    command: ["sqlite3", "/data/workspan_core.db", ".read /docker-entrypoint-initdb.d/init_workspan.sql"]

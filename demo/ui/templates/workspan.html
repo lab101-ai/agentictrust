@@ -1,0 +1,278 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Workspan Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        background-color: #f4f6f8;
+        color: #333;
+      }
+      .container {
+        padding: 20px;
+      }
+      h1 {
+        color: #1a5a96; /* Darker, more professional blue */
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        background-color: #fff;
+      }
+      th, td {
+        border: 1px solid #ddd; /* Lighter borders */
+        padding: 10px 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #e9ecef; /* Lighter, neutral header */
+        font-weight: 600;
+      }
+      .tabs {
+        display: flex;
+        border-bottom: 2px solid #007bff; /* Primary color accent */
+        margin-bottom: 20px;
+      }
+      .tablink {
+        background-color: transparent;
+        color: #007bff;
+        padding: 12px 18px;
+        border: none;
+        border-radius: 5px 5px 0 0;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.3s, color 0.3s;
+        margin-right: 5px;
+        border-bottom: 2px solid transparent; /* For active state indication */
+      }
+      .tablink:hover {
+        background-color: #e9ecef;
+      }
+      .tablink.active {
+        background-color: #007bff;
+        color: #fff;
+        border-bottom: 2px solid #0056b3;
+      }
+      .tabcontent {
+        display: none;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-top: none;
+        background-color: #fff;
+        border-radius: 0 0 5px 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      }
+      .tabcontent h2 {
+        margin-top: 0;
+        color: #1a5a96;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+      }
+      .analytics-metrics {
+        display: flex;
+        justify-content: space-around;
+        margin-bottom: 30px;
+      }
+      .metric-card {
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        text-align: center;
+        flex-basis: 45%;
+      }
+      .metric-card h3 {
+        margin-top: 0;
+        color: #007bff;
+        font-size: 1.8em;
+      }
+      .metric-card p {
+        font-size: 1.1em;
+        color: #555;
+      }
+      #dealsByStageChartContainer {
+        width: 100%;
+        max-width: 700px; /* Limit chart width for better readability */
+        margin: 0 auto; /* Center the chart */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Workspan Analytics DB</h1>
+      <div class="tabs">
+        <button id="defaultOpen" class="tablink" onclick="openTab(event, 'companies')">Companies</button>
+        <button class="tablink" onclick="openTab(event, 'partners')">Partners</button>
+        <button class="tablink" onclick="openTab(event, 'products')">Products</button>
+        <button class="tablink" onclick="openTab(event, 'deals')">Deals</button>
+        <button class="tablink" onclick="openTab(event, 'analytics')">Analytics</button>
+        <button class="tablink" onclick="openTab(event, 'users')">Users</button>
+      </div>
+      <div id="companies" class="tabcontent" style="display: none;">
+        <h2>Companies</h2>
+        <table>
+          <tr><th>ID</th><th>Name</th><th>HQ</th><th>Industry</th></tr>
+          {% for c in companies %}<tr><td>{{ c[0] }}</td><td>{{ c[1] }}</td><td>{{ c[2] }}</td><td>{{ c[3] }}</td></tr>{% endfor %}
+        </table>
+      </div>
+      <div id="partners" class="tabcontent" style="display:none">
+        <h2>Partners</h2>
+        <table>
+          <tr><th>ID</th><th>Name</th><th>HQ</th></tr>
+          {% for p in partners %}<tr><td>{{ p[0] }}</td><td>{{ p[1] }}</td><td>{{ p[2] }}</td></tr>{% endfor %}
+        </table>
+      </div>
+      <div id="products" class="tabcontent" style="display:none">
+        <h2>Products</h2>
+        <table><tr><th>ID</th><th>Name</th><th>Category</th></tr>{% for pr in products %}<tr><td>{{ pr[0] }}</td><td>{{ pr[1] }}</td><td>{{ pr[2] }}</td></tr>{% endfor %}</table>
+      </div>
+      <div id="deals" class="tabcontent" style="display:none">
+        <h2>Deals</h2>
+        <table><tr><th>ID</th><th>Company</th><th>Partner</th><th>Amount</th><th>Stage</th><th>Owner</th></tr>{% for d in deals %}<tr><td>{{ d[0] }}</td><td>{{ d[1] }}</td><td>{{ d[2] }}</td><td>{{ '{:,.0f}'.format(d[3]) }}</td><td>{{ d[4] }}</td><td>{{ d[5] }}</td></tr>{% endfor %}</table>
+      </div>
+      <div id="analytics" class="tabcontent">
+        <h2>Analytics Summary</h2>
+        <div class="analytics-metrics">
+          <div class="metric-card">
+            <p>Total Deals</p>
+            <h3>{{ analytics.total_deals }}</h3>
+          </div>
+          <div class="metric-card">
+            <p>Total Pipeline Value</p>
+            <h3>${{ '{:,.0f}'.format(analytics.total_amount) }}</h3>
+          </div>
+        </div>
+
+        <h2>Deals by Stage</h2>
+        <div id="dealsByStageChartContainer">
+          <div id="stageCountsDataHolder" data-stages='{{ analytics.stage_counts | tojson | safe }}' style='display: none;'></div>
+          <canvas id="dealsByStageChart"></canvas>
+        </div>
+
+        <!-- New Table: Deal Performance by Owner -->
+        <h2 style="margin-top: 30px;">Deal Performance by Owner</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Owner</th>
+              <th>Total Pipeline Value</th>
+              <th>Total Deals</th>
+              {% for stage_name in analytics.all_stages_list %}
+                <th>{{ stage_name }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for owner_data in analytics.owner_performance %}
+            <tr>
+              <td>{{ owner_data.owner_name }}</td>
+              <td>${{ '{:,.0f}'.format(owner_data.total_amount) }}</td>
+              <td>{{ owner_data.total_deals }}</td>
+              {% for stage_name in analytics.all_stages_list %}
+                <td>{{ owner_data.stages[stage_name] | default(0) }}</td>
+              {% endfor %}
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="{{ 3 + analytics.all_stages_list | length }}" style="text-align: center;">No owner performance data available.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <!-- End New Table -->
+
+      </div>
+      <div id="users" class="tabcontent" style="display:none">
+        <h2>Users</h2>
+        <table><tr><th>ID</th><th>Email</th><th>Name</th><th>Role</th></tr>
+          {% for u in users %}<tr><td>{{ u[0] }}</td><td>{{ u[1] }}</td><td>{{ u[2] }} {{ u[3] }}</td><td>{{ u[4] }}</td></tr>{% endfor %}
+        </table>
+      </div>
+      <script>
+        function openTab(evt, tabName) {
+          var i, tabcontent, tablinks;
+          tabcontent = document.getElementsByClassName("tabcontent");
+          for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+          }
+          tablinks = document.getElementsByClassName("tablink");
+          for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+          }
+          document.getElementById(tabName).style.display = "block";
+          evt.currentTarget.className += " active";
+
+          if (tabName === 'analytics') {
+            renderDealsByStageChart();
+          }
+        }
+        document.getElementById("defaultOpen").click();
+
+        function renderDealsByStageChart() {
+          const ctx = document.getElementById('dealsByStageChart').getContext('2d');
+          const dataHolder = document.getElementById('stageCountsDataHolder');
+          const dealsByStageData = JSON.parse(dataHolder.dataset.stages);
+
+          // Check if a chart instance already exists and destroy it
+          if (window.dealsChart instanceof Chart) {
+              window.dealsChart.destroy();
+          }
+
+          const labels = dealsByStageData.map(item => item[0]);
+          const data = dealsByStageData.map(item => item[1]);
+
+          window.dealsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'Number of Deals',
+                data: data,
+                backgroundColor: [
+                  'rgba(255, 99, 132, 0.2)',
+                  'rgba(54, 162, 235, 0.2)',
+                  'rgba(255, 206, 86, 0.2)',
+                  'rgba(75, 192, 192, 0.2)',
+                  'rgba(153, 102, 255, 0.2)',
+                  'rgba(255, 159, 64, 0.2)'
+                ],
+                borderColor: [
+                  'rgba(255, 99, 132, 1)',
+                  'rgba(54, 162, 235, 1)',
+                  'rgba(255, 206, 86, 1)',
+                  'rgba(75, 192, 192, 1)',
+                  'rgba(153, 102, 255, 1)',
+                  'rgba(255, 159, 64, 1)'
+                ],
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    stepSize: 1 // Ensure y-axis ticks are integers for deal counts
+                  }
+                }
+              },
+              plugins: {
+                legend: {
+                  display: false // Or true if you want the legend
+                }
+              }
+            }
+          });
+        }
+      </script>
+    </div>
+  </body>
+</html>

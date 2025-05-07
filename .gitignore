@@ -99,3 +99,4 @@ platform/.env*
 # Local AgenticTrust database directory
 .agentictrust/*
 *.db.agentictrust/*
+*.db

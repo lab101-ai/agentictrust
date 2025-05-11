@@ -11,7 +11,6 @@ class CreateUserRequest(BaseModel):
     job_title: Optional[str] = None
     level: Optional[str] = None
     scopes: Optional[List[str]] = []
-    policies: Optional[List[str]] = []
 
 class UpdateUserRequest(BaseModel):
     username: Optional[str] = None
@@ -23,4 +22,3 @@ class UpdateUserRequest(BaseModel):
     job_title: Optional[str] = None
     level: Optional[str] = None
     scopes: Optional[List[str]] = None
-    policies: Optional[List[str]] = None

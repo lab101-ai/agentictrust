@@ -24,8 +24,6 @@ def init_db():
         Agent,
         AuthorizationCode,
         IssuedToken,
-        Policy,
-        PolicyAuditLog,
         Scope,
         ScopeAuditLog,
         TaskAuditLog,

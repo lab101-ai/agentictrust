@@ -204,10 +204,7 @@ class Scope(Base):
                 logger.warning(msg)
                 raise ValueError(msg)
                 
-            if hasattr(scope, 'policies') and scope.policies and len(scope.policies) > 0:
-                msg = f"Cannot delete scope {scope_id} ({scope.name}) as it is associated with {len(scope.policies)} policies"
-                logger.warning(msg)
-                raise ValueError(msg)
+            # Policy model deprecated – skip policy association checks
                 
             scope_name = scope.name  # Store for logging after deletion
             db_session.delete(scope)

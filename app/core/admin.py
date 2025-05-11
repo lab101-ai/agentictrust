@@ -4,7 +4,7 @@ Core admin management logic abstracted for reuse in routers and services
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from sqlalchemy.sql import func
-from app.db.models import Agent, IssuedToken, TaskAuditLog, Tool, Policy, User
+from app.db.models import Agent, IssuedToken, TaskAuditLog, Tool, User
 from app.db.models.audit import PolicyAuditLog, ScopeAuditLog
 from app.db.models.audit.token_audit import TokenAuditLog
 import logging
@@ -45,14 +45,12 @@ def get_dashboard_stats() -> Dict[str, Any]:
     ).count()
     # Additional metrics
     users_count = User.query.count()
-    policies_count = Policy.query.filter(Policy.is_active == True).count()
     return {
         'agents_count': agents_count,
         'tools_count': tools_count,
         'tokens_count': tokens_count,
         'active_tokens_count': active_tokens_count,
         'users_count': users_count,
-        'policies_count': policies_count,
     }
 
 

@@ -203,49 +203,34 @@ def is_scope_expansion_allowed(exceeded_scopes, parent_scopes, client_id=None, p
     return False
 
 def verify_tool_access(token, tool_name):
-    """Verify that a token has access to use a specific tool."""
+    """Verify that a token has access to use a specific tool via OPA policy."""
     log_ctx = {
         "token_id": token.token_id,
         "client_id": token.client_id,
         "task_id": token.task_id,
         "tool_name": tool_name
     }
-
-    # ------------------------------------------------------------------
-    # Determine granted tools from token.granted_tools (space-separated)
-    # ------------------------------------------------------------------
-    granted_tools: List[str] = [t.strip() for t in (token.granted_tools or "").split() if t.strip()]
-
-    # Fast-deny if nothing granted
-    if not granted_tools:
-        logger.bind(**log_ctx).warning("Tool access denied: no granted_tools on token")
-        return False
-
-    # Wild-card allowance ("*" or "all")
-    if "*" in granted_tools or "all" in granted_tools:
-        logger.bind(**log_ctx).debug("Tool access granted via wildcard")
-        return True
-
-    # Direct match on provided identifier
-    if tool_name in granted_tools:
-        logger.bind(**log_ctx).debug("Tool access granted via direct match")
-        return True
-
-    # Resolve to Tool DB object for cross-checking id/name
+    from app.core.policy.opa_client import opa_client
+    # Resolve tool object for classification
     from app.db.models import Tool
-    tool_obj = None
     if isinstance(tool_name, str) and len(tool_name) == 36 and "-" in tool_name:
         tool_obj = Tool.query.get(tool_name)
     else:
         tool_obj = Tool.query.filter_by(name=tool_name).first()
-
     if not tool_obj:
         logger.bind(**log_ctx).warning("Tool access denied: tool not found")
         return False
-
-    if tool_obj.tool_id in granted_tools or tool_obj.name in granted_tools:
-        logger.bind(**log_ctx).debug("Tool access granted after resolving tool record")
-        return True
-
-    logger.bind(**log_ctx).warning(f"Tool access denied: {tool_name}")
-    return False 
+    input_data = {
+        "agent": {"agent_trust_level": token.agent_trust_level},
+        "tool": {"classification": tool_obj.category}
+    }
+    try:
+        allowed = opa_client.query_bool_sync("allow_tool", input_data)
+        if allowed:
+            logger.bind(**log_ctx).debug("Tool access granted by OPA policy")
+        else:
+            logger.bind(**log_ctx).warning("Tool access denied by OPA policy")
+        return allowed
+    except Exception as e:
+        logger.error(f"OPA tool access query failed: {e}")
+        return False 

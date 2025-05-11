@@ -9,6 +9,7 @@ from pathlib import Path
 from app.core.scope.utils import validate_scope_name
 from app.core.scope.operations import expand_implied_scopes
 from app.db.models import Scope
+# Legacy Policy model retired – OPA is now single source of truth
 from app.utils.logger import logger
 
 class ScopeEngine:
@@ -242,3 +243,23 @@ class ScopeEngine:
                 "description": scope.description
             })
         return items
+
+    def is_scope_expansion_allowed(self, requested: str, implied: str, context: Dict[str, Any]) -> bool:
+        """
+        Check if an implied scope can be granted based on policies for a requested scope.
+        """
+        # Prefer OPA rule if enabled
+        try:
+            from app.core.policy.opa_client import opa_client
+            input_data = {
+                "requested": requested,
+                "implied": implied,
+                "context": context,
+            }
+            allowed = opa_client.query_bool_sync("allow_scope_expansion", input_data)
+            return allowed
+        except Exception as e:
+            logger.warning(f"OPA scope-expansion query failed, defaulting to allow: {e}")
+            # Legacy DB-backed policy engine removed.  Default to allow on
+            # OPA communication failure to preserve previous behaviour.
+            return True

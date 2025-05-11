@@ -11,6 +11,12 @@ default:
   OPENAPI_URL: "/openapi.json"
   OPENAPI_PREFIX: ""
 
+  # OPA policy enforcement (Open Policy Agent)
+  ENABLE_OPA_POLICIES: true          # Feature flag to enable/disable OPA checks
+  OPA_HOST: "http://localhost"       # OPA server base URL
+  OPA_PORT: 8181                      # OPA server port
+  OPA_POLICY_PATH: "agentictrust/authz/allow"   # Data path to the allow rule
+
 environments:
   development:
     DEBUG: true

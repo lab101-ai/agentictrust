@@ -7,19 +7,12 @@ from app.db import Base, db_session
 
 logger = logging.getLogger(__name__)
 
-# Association tables for user-scope and user-policy relationships
+# Association table for user-scope many-to-many relationship (policies now live in OPA only)
 user_scopes = Table(
     'user_scopes',
     Base.metadata,
     Column('user_id', String(36), ForeignKey('users.user_id'), primary_key=True),
     Column('scope_id', String(36), ForeignKey('scopes.scope_id'), primary_key=True)
-)
-
-user_policies = Table(
-    'user_policies',
-    Base.metadata,
-    Column('user_id', String(36), ForeignKey('users.user_id'), primary_key=True),
-    Column('policy_id', String(36), ForeignKey('policies.policy_id'), primary_key=True)
 )
 
 class User(Base):
@@ -43,10 +36,9 @@ class User(Base):
     attributes = Column(JSON, nullable=True)
 
     scopes = relationship('Scope', secondary=user_scopes, backref='users')
-    policies = relationship('Policy', secondary=user_policies, backref='users')
 
     @classmethod
-    def create(cls, username, email, full_name=None, hashed_password=None, is_external=False, department=None, job_title=None, level=None, attributes=None, scope_ids=None, policy_ids=None):
+    def create(cls, username, email, full_name=None, hashed_password=None, is_external=False, department=None, job_title=None, level=None, attributes=None, scope_ids=None):
         """Create a new user."""
         # Check uniqueness of username and email
         if cls.query.filter_by(username=username).first():
@@ -71,12 +63,6 @@ class User(Base):
                 scope = Scope.query.get(scope_id)
                 if scope:
                     user.scopes.append(scope)
-        if policy_ids:
-            from app.db.models.policy import Policy
-            for policy_id in policy_ids:
-                policy = Policy.query.get(policy_id)
-                if policy:
-                    user.policies.append(policy)
         try:
             db_session.add(user)
             db_session.commit()
@@ -97,14 +83,6 @@ class User(Base):
                 scope = Scope.query.get(scope_id)
                 if scope:
                     self.scopes.append(scope)
-        policy_ids = kwargs.pop('policy_ids', None)
-        if policy_ids is not None:
-            self.policies = []
-            from app.db.models.policy import Policy
-            for policy_id in policy_ids:
-                policy = Policy.query.get(policy_id)
-                if policy:
-                    self.policies.append(policy)
         # Handle attributes merge
         attrs_update = kwargs.pop('attributes', None)
         if attrs_update is not None:
@@ -136,7 +114,6 @@ class User(Base):
             'level': self.level,
             'attributes': self.attributes or {},
             'scopes': [scope.scope_id for scope in self.scopes],
-            'policies': [policy.policy_id for policy in self.policies],
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

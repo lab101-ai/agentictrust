@@ -1,187 +1,25 @@
-# OAuth Scopes Configuration (minimal for partner data flow)
+# OAuth Scopes Configuration – Cisco × WorkSpan
 scopes:
-  - name: deals.read
-    description: Read actionable partner deal information
-    category: partner_data
+  - name: read:sales:own
+    description: Read a user's own sales deals
+    category: sales_data
     is_default: false
     is_sensitive: false
 
-  - name: lci_telemetry.read
-    description: Read LCI telemetry insights
-    category: partner_data
-    is_default: false
-    is_sensitive: false
-
-  - name: support:ticket.read
-    description: Read customer support tickets
-    category: support
-    is_default: false
-    is_sensitive: false
-
-  - name: support:ticket.create
-    description: Create customer support tickets
-    category: support
-    is_default: false
-    is_sensitive: false
-
-  - name: partner.adoption_score.read
-    description: Read adoption score metrics for partner
-    category: partner_data
-    is_default: false
-    is_sensitive: false
-
-  - name: partner.usage_telemetry.read
-    description: Read usage telemetry for partner
-    category: partner_data
-    is_default: false
-    is_sensitive: false
-
-  - name: deals.update
-    description: Update deal records
-    category: partner_data
-    is_default: false
-    is_sensitive: false
-
-  - name: deals.delete
-    description: Delete deal records
-    category: partner_data
+  - name: write:sales:own
+    description: Create or update a user's own sales deals
+    category: sales_data
     is_default: false
     is_sensitive: true
 
-  - name: deals.export
-    description: Export deal pipeline data
-    category: partner_data
-    is_default: false
-    is_sensitive: true
-
-  - name: lci.raw.read
-    description: Read raw LCI telemetry
-    category: partner_data
-    is_default: false
-    is_sensitive: true
-
-  - name: lci.summary.read
-    description: Read summarized LCI telemetry
-    category: partner_data
+  - name: read:sales:company
+    description: Read company-wide sales data (same company only)
+    category: sales_data
     is_default: false
     is_sensitive: false
 
-  - name: lci.raw.write
-    description: Write raw LCI telemetry
-    category: partner_data
+  - name: read:sales:aggregate
+    description: Read aggregated sales metrics across all companies (anonymised)
+    category: sales_data
     is_default: false
-    is_sensitive: true
-
-  - name: partner.profile.read
-    description: Read partner profile
-    category: partner_directory
-    is_default: false
-    is_sensitive: false
-
-  - name: partner.profile.update
-    description: Update partner profile
-    category: partner_directory
-    is_default: false
-    is_sensitive: true
-
-  - name: partner.user.invite
-    description: Invite partner user
-    category: partner_directory
-    is_default: false
-    is_sensitive: false
-
-  - name: agent.registry.read
-    description: Read agent registry
-    category: agent_registry
-    is_default: false
-    is_sensitive: false
-
-  - name: agent.registry.register
-    description: Register new agent
-    category: agent_registry
-    is_default: false
-    is_sensitive: false
-
-  - name: agent.registry.suspend
-    description: Suspend agent
-    category: agent_registry
-    is_default: false
-    is_sensitive: true
-
-  - name: token.exchange
-    description: Exchange token for delegated access
-    category: token_service
-    is_default: false
-    is_sensitive: false
-
-  - name: token.introspect
-    description: Introspect token validity
-    category: token_service
-    is_default: false
-    is_sensitive: false
-
-  - name: token.revoke
-    description: Revoke token
-    category: token_service
-    is_default: false
-    is_sensitive: true
-
-  - name: workflow.launch
-    description: Launch workflow instance
-    category: workflow
-    is_default: false
-    is_sensitive: false
-
-  - name: workflow.pause
-    description: Pause workflow instance
-    category: workflow
-    is_default: false
-    is_sensitive: false
-
-  - name: workflow.cancel
-    description: Cancel workflow instance
-    category: workflow
-    is_default: false
-    is_sensitive: true
-
-  - name: object.read
-    description: Read object from store
-    category: object_store
-    is_default: false
-    is_sensitive: false
-
-  - name: object.write
-    description: Write object to store
-    category: object_store
-    is_default: false
-    is_sensitive: true
-
-  - name: audit_log.read
-    description: Read immutable audit log
-    category: observability
-    is_default: false
-    is_sensitive: true
-
-  - name: metrics.export
-    description: Export aggregated metrics
-    category: observability
-    is_default: false
-    is_sensitive: false
-
-  - name: config.read
-    description: Read environment configuration
-    category: admin
-    is_default: false
-    is_sensitive: true
-
-  - name: config.update
-    description: Update environment configuration
-    category: admin
-    is_default: false
-    is_sensitive: true
-
-  - name: vault.read
-    description: Read from secrets vault
-    category: admin
-    is_default: false
-    is_sensitive: true
+    is_sensitive: false 

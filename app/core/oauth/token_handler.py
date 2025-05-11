@@ -230,10 +230,17 @@ class TokenHandler:
                 raise ValueError("invalid_parent_token")
             parent_token_id = parent.token_id
             parent_task_id = parent.task_id
+            # Capture parent token details for policy evaluation
+            parent_details = {
+                "token_id": parent.token_id,
+                "task_id": parent.task_id,
+                "client_id": parent.client_id,
+                "scopes": parent.scopes.split(),
+            }
+        else:
+            parent_details = None
 
-        # 6. Policy evaluation
-        from app.core.registry import get_policy_engine
-        policy_engine = get_policy_engine()
+        # 6. Policy evaluation via OPA
         policy_ctx = {
             "client_id": client_id,
             "scopes": scope_list,
@@ -241,7 +248,6 @@ class TokenHandler:
             "response_type": "client_credentials",
             "agent": {
                 "is_active": agent.is_active,
-                "is_external": False,
                 "status": "active" if agent.is_active else "inactive",
                 "agent_type": agent.agent_type,
                 "agent_model": agent.agent_model,
@@ -250,22 +256,41 @@ class TokenHandler:
             },
             "launch_reason": launch_reason,
             "launched_by": launched_by,
+            "parent": parent_details,
         }
-        decision = policy_engine.evaluate(policy_ctx)
-        if not decision.get("allowed", False):
-            pid = decision.get("denied_by")
+        from app.core.policy.opa_client import opa_client
+        policy_ctx["response_type"] = "client_credentials"
+        input_data = {
+            "refresh_token": data.parent_token,
+            "client_id": client_id,
+            "scopes": scope_list,
+            "granted_tools": data.required_tools or [],
+            "response_type": "client_credentials",
+            "agent": {
+                "is_active": agent.is_active,
+                "status": "active" if agent.is_active else "inactive",
+                "agent_type": agent.agent_type,
+                "agent_model": agent.agent_model,
+                "agent_version": agent.agent_version,
+                "agent_provider": agent.agent_provider,
+            },
+            "launch_reason": launch_reason,
+            "launched_by": launched_by,
+            "parent": parent_details,
+        }
+        allowed = opa_client.query_bool_sync("allow_token_issue", input_data)
+        if not allowed:
             PolicyAuditLog.log(
                 client_id=client_id,
                 action="token_issue_attempt",
                 decision="denied",
-                reason=f"denied_by_policy {pid}",
-                policy_id=pid,
+                reason="denied_by_opa",
                 resource_type="token",
                 task_id=task_id,
                 parent_task_id=parent_task_id,
-                context=policy_ctx,
+                details=policy_ctx,
             )
-            raise ValueError(f"access_denied: denied_by_policy {pid}")
+            raise ValueError("access_denied: denied_by_policy")
 
         # 7. Issue token
         token_obj, access_token, refresh_token = IssuedToken.create(

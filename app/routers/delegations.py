@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any
 from app.core.registry import get_delegation_engine
 from pydantic import BaseModel, Field
+from app.core.policy.opa_client import opa_client
 
 router = APIRouter(prefix="/api/delegations", tags=["delegations"])
 engine = get_delegation_engine()
@@ -17,8 +18,28 @@ class DelegationCreate(BaseModel):
 
 @router.post("/", response_model=Dict[str, Any])
 async def create_delegation(body: DelegationCreate):
+    # Run OPA policy enforcement BEFORE persisting the delegation
+    allowed = await opa_client.is_allowed({
+        "action": "create_delegation",
+        "principal_type": body.principal_type,
+        "principal_id": body.principal_id,
+        "delegate_id": body.delegate_id,
+        "scope": body.scope,
+        "max_depth": body.max_depth,
+        "constraints": body.constraints,
+        "ttl_hours": body.ttl_hours,
+    })
+    if not allowed:
+        raise HTTPException(status_code=403, detail="access_denied: OPA policy denied delegation creation")
+
     try:
-        return engine.create_grant(**body.dict())
+        delegation = engine.create_grant(**body.dict())
+        # Add OPA sync for new delegation grant
+        try:
+            opa_client.put_data(f"runtime/delegations/{delegation['grant_id']}", delegation)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"OPA sync failed: {e}")
+        return delegation
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
 
@@ -26,6 +47,11 @@ async def create_delegation(body: DelegationCreate):
 async def delete_delegation(grant_id: str):
     try:
         engine.revoke_grant(grant_id)
+        # Add OPA delete for removed delegation grant
+        try:
+            opa_client.delete_data(f"runtime/delegations/{grant_id}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"OPA delete failed: {e}")
         return {"message": "revoked"}
     except ValueError as ve:
         raise HTTPException(status_code=404, detail=str(ve))

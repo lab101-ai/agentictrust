@@ -40,3 +40,30 @@ class ListPoliciesResponse(BaseModel):
 
 class BasicResponse(BaseModel):
     message: str
+
+# Policy check schemas
+class AuthorizationData(BaseModel):
+    """Authorization data includes user details and token information."""
+    user_id: str
+    username: str
+    department: str
+    partner: str
+    scopes: List[str]
+    token_id: Optional[str] = None
+    parent_token_id: Optional[str] = None
+
+class RequestData(BaseModel):
+    """Data about the request being authorized."""
+    action: str
+    resource: Dict[str, Any]
+
+class PolicyCheckRequest(BaseModel):
+    """Request to check if an action is authorized."""
+    auth: AuthorizationData
+    request: RequestData
+
+class PolicyCheckResponse(BaseModel):
+    """Response from a policy check."""
+    allowed: bool
+    message: str
+    decision_id: str

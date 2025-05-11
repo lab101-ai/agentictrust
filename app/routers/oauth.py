@@ -13,6 +13,7 @@ import logging
 
 # Use centralised OAuth engine
 from app.core.registry import get_oauth_engine
+from app.core.policy.opa_client import opa_client
 
 engine = get_oauth_engine()
 
@@ -158,6 +159,7 @@ async def verify_token_endpoint(body: Dict[str, Any]) -> Dict[str, Any]:
 async def verify_tool_access_endpoint(body: Dict[str, Any]) -> Dict[str, Any]:
     """Check whether the supplied token may invoke the given tool."""
     from app.core.oauth.utils import verify_token as _verify_token, verify_task_lineage, verify_tool_access as _verify_tool_access
+    from app.core.policy.opa_client import opa_client
 
     token_str: Optional[str] = body.get("token")
     tool_name: Optional[str] = body.get("tool_name") or body.get("tool_id")
@@ -184,6 +186,22 @@ async def verify_tool_access_endpoint(body: Dict[str, Any]) -> Dict[str, Any]:
 
     if not _verify_tool_access(token_obj, tool_name):
         raise HTTPException(status_code=403, detail="invalid_tool_access")
+
+    # OPA policy enforcement for tool invocation
+    tool_input = {
+        "agent": {
+            "client_id": token_obj.client_id,
+            "agent_trust_level": token_obj.agent_trust_level,
+            "status": "active" if token_obj.agent.is_active else "inactive",
+        },
+        "tool": {"name": tool_name},
+        "action": "invoke_tool",
+        "task_id": token_obj.task_id,
+        "parent_task_id": token_obj.parent_task_id,
+        "parent_token": parent_token_str,
+    }
+    if not await opa_client.is_allowed(tool_input):
+        raise HTTPException(status_code=403, detail="access_denied: OPA policy denied tool access")
 
     return {
         "access": True,

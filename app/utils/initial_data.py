@@ -232,15 +232,6 @@ def load_users(config_data):
                     scope_obj = Scope.query.filter_by(name=s).first()
                     if scope_obj:
                         scope_ids.append(scope_obj.scope_id)
-            policy_ids = []
-            from app.db.models.policy import Policy
-            for p in user_data.get('policies', []) or []:
-                if len(p) == 36 and "-" in p:
-                    policy_ids.append(p)
-                else:
-                    pol_obj = Policy.query.filter_by(name=p).first()
-                    if pol_obj:
-                        policy_ids.append(pol_obj.policy_id)
 
             User.create(
                 username=username,
@@ -253,7 +244,6 @@ def load_users(config_data):
                 level=user_data.get('level'),
                 attributes=attrs if attrs else None,
                 scope_ids=scope_ids if scope_ids else None,
-                policy_ids=policy_ids if policy_ids else None,
             )
             created_count += 1
         except Exception as e:

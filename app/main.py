@@ -185,46 +185,6 @@ def get_db():
     finally:
         pass  # The scoped_session will handle cleanup automatically
 
-# Lifespan is already registered when creating the FastAPI app
-
-@app.get('/api/routes')
-async def list_routes() -> Dict[str, Any]:
-    """List all registered routes with their endpoints and methods."""
-    routes = []
-    
-    # FastAPI routes
-    for route in app.routes:
-        routes.append({
-            'endpoint': route.name,
-            'methods': ','.join([method for method in route.methods]),
-            'path': route.path,
-            'is_api': route.path.startswith('/api')
-        })
-    
-    # Sort routes by path
-    routes = sorted(routes, key=lambda x: x['path'])
-    
-    # Group by base path for better organization
-    grouped_routes = {}
-    for route in routes:
-        parts = route['path'].split('/')
-        if len(parts) > 2 and parts[1] == 'api':
-            # group API routes by resource prefix
-            base = f"/{parts[1]}/{parts[2]}"
-        elif len(parts) > 1:
-            base = f"/{parts[1]}"
-        else:
-            base = "/"
-        if base not in grouped_routes:
-            grouped_routes[base] = []
-        grouped_routes[base].append(route)
-    
-    return {
-        'routes': routes,
-        'grouped_routes': grouped_routes,
-        'total': len(routes)
-    }
-
 if __name__ == '__main__':
     # Try loading host and port from environment, fall back to defaults
     host = os.environ.get('HOST', '127.0.0.1')

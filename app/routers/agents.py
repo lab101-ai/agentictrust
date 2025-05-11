@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Body
 from typing import Dict, List, Any, Optional
 from app.core import get_agent_engine
+from app.core.policy.opa_client import opa_client
 
 # Create router with prefix and tags
 router = APIRouter(prefix="/api/agents", tags=["agents"])
@@ -15,6 +16,13 @@ async def register_agent(data: dict = Body(...)) -> Dict[str, Any]:
             max_scope_level=data.get('max_scope_level', 'restricted'),
             tool_ids=data.get('tool_ids', [])
         )
+        # Add OPA sync for new agent
+        agent = result.get('agent')
+        if agent:
+            try:
+                opa_client.put_data(f"runtime/agents/{agent['client_id']}", agent)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"OPA sync failed: {e}")
         return {'message': 'Agent registered successfully', **result}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -52,6 +60,11 @@ async def get_agent(client_id: str) -> Dict[str, Any]:
 async def delete_agent(client_id: str) -> Dict[str, Any]:
     try:
         engine.delete_agent(client_id)
+        # Add OPA delete for removed agent
+        try:
+            opa_client.delete_data(f"runtime/agents/{client_id}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"OPA delete failed: {e}")
         return {'message': 'Agent deleted successfully'}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -100,6 +113,13 @@ async def remove_tool_from_agent(client_id: str, tool_id: str) -> Dict[str, Any]
 async def update_agent(client_id: str, data: dict = Body(...)) -> Dict[str, Any]:
     try:
         result = engine.update_agent(client_id, data)
+        # Add OPA sync for updated agent
+        agent = result.get('agent')
+        if agent:
+            try:
+                opa_client.put_data(f"runtime/agents/{client_id}", agent)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"OPA sync failed: {e}")
         return {'message': 'Agent updated successfully', **result}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

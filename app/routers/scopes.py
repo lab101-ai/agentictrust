@@ -12,6 +12,7 @@ from app.schemas.scopes import (
     ListScopesResponse,
     BasicResponse
 )
+from app.core.policy.opa_client import opa_client
 
 # Create router with prefix and tags
 router = APIRouter(prefix="/api/scopes", tags=["scopes"])
@@ -24,6 +25,11 @@ async def create_scope(data: CreateScopeRequest):
     try:
         params = data.dict()
         result = engine.create_scope(**params)
+        # Add OPA sync for new scope
+        try:
+            opa_client.put_data(f"runtime/scopes/{result['scope_id']}", result)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"OPA sync failed: {e}")
         return {'message': 'Scope created successfully', 'scope': result}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=Text(e))
@@ -54,6 +60,11 @@ async def update_scope(scope_id: Text, data: UpdateScopeRequest):
     """Update an existing scope."""
     try:
         updated = engine.update_scope(scope_id, data.dict(exclude_unset=True))
+        # Add OPA sync for updated scope
+        try:
+            opa_client.put_data(f"runtime/scopes/{scope_id}", updated)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"OPA sync failed: {e}")
         return {'message': 'Scope updated successfully', 'scope': updated}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=Text(e))
@@ -65,6 +76,11 @@ async def delete_scope(scope_id: Text):
     """Delete a scope by ID."""
     try:
         engine.delete_scope(scope_id)
+        # Add OPA delete for removed scope
+        try:
+            opa_client.delete_data(f"runtime/scopes/{scope_id}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"OPA delete failed: {e}")
         return {'message': 'Scope deleted successfully'}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=Text(e))

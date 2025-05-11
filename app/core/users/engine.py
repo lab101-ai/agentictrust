@@ -1,6 +1,6 @@
 """Core user management logic."""
 from typing import Dict, Any, List, Optional
-from app.db.models import User, Scope, Policy
+from app.db.models import User, Scope
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,8 +14,7 @@ class UserEngine:
     def create_user(self, username: str, email: str, full_name: Optional[str] = None,
                     hashed_password: Optional[str] = None, is_external: bool = False,
                     department: Optional[str] = None, job_title: Optional[str] = None,
-                    level: Optional[str] = None, scopes: Optional[List[str]] = None,
-                    policies: Optional[List[str]] = None) -> Dict[str, Any]:
+                    level: Optional[str] = None, scopes: Optional[List[str]] = None) -> Dict[str, Any]:
         """Create a new user and return dict."""
         # Basic validation
         if not username or not email:
@@ -23,7 +22,6 @@ class UserEngine:
             
         # Process scope and policy identifiers
         scope_ids: List[str] = []
-        policy_ids: List[str] = []
         
         # Process scopes
         for s in scopes or []:
@@ -36,23 +34,12 @@ class UserEngine:
                 else:
                     raise ValueError(f"Scope '{s}' not found")
                     
-        # Process policies
-        for p in policies or []:
-            if len(p) == 36 and "-" in p:  # Already a UUID
-                policy_ids.append(p)
-            else:  # A policy name
-                pol_obj = Policy.find_by_name(p)
-                if pol_obj:
-                    policy_ids.append(pol_obj.policy_id)
-                else:
-                    raise ValueError(f"Policy '{p}' not found")
-                    
         # Create the user via the User model
         user = User.create(
             username=username, email=email, full_name=full_name,
             hashed_password=hashed_password, is_external=is_external,
             department=department, job_title=job_title, level=level,
-            scope_ids=scope_ids, policy_ids=policy_ids
+            scope_ids=scope_ids
         )
         return user.to_dict()
 

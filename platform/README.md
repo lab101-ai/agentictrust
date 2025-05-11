@@ -82,8 +82,6 @@ yarn start
 
 ## API Integration
 
-The frontend communicates with the Flask backend through a proxy API implemented in `src/app/api/route.ts`. This allows the frontend to make requests to the backend without CORS issues.
-
 The API service functions are defined in `src/lib/api.ts` and provide typed functions for interacting with the backend API.
 
 ## Available APIs

@@ -10,7 +10,6 @@ from functools import lru_cache
 from typing import Any, Dict
 
 from app.core.scope.engine import ScopeEngine
-from app.core.policy.engine import PolicyEngine
 from app.core.oauth.engine import OAuthEngine
 from app.core.delegation.engine import DelegationEngine
 from app.core.agents.engine import AgentEngine
@@ -29,12 +28,6 @@ def get_scope_engine() -> ScopeEngine:  # pragma: no cover
     instance thanks to ``functools.lru_cache``.
     """
     return ScopeEngine()
-
-# Lazy-singleton helper for PolicyEngine
-@lru_cache(maxsize=None)
-def get_policy_engine() -> PolicyEngine:
-    """Return a singleton :class:`PolicyEngine` instance."""
-    return PolicyEngine()
 
 # Lazy-singleton helper for OAuthEngine
 @lru_cache(maxsize=None)
@@ -71,7 +64,6 @@ def get_user_engine() -> UserEngine:
 
 _ALL_ENGINE_GETTERS = [
     get_scope_engine,
-    get_policy_engine,
     get_oauth_engine,
     get_delegation_engine,
     get_agent_engine,

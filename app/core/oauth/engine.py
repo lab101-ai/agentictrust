@@ -8,7 +8,6 @@ from datetime import timedelta
 
 # Database models
 from app.db.models import Agent, IssuedToken
-from app.db.models.audit.policy_audit import PolicyAuditLog
 from app.db.models.audit.token_audit import TokenAuditLog
 from app.db.models.audit.delegation_audit import DelegationAuditLog
 from app.core.oauth.code_handler import code_handler
@@ -69,6 +68,22 @@ class OAuthEngine:
         launched_by: Optional[str] = None,
     ) -> Tuple[IssuedToken, str, str]:
         """Validate code + PKCE and issue new token/refresh pair."""
+        # OPA authorization for auth-code exchange
+        from app.core.policy.opa_client import opa_client
+        input_data = {
+            "client_id": client_id,
+            "code": code_plain,
+            "redirect_uri": redirect_uri,
+            # NOTE: Requested scopes are not available at this stage; they will be
+            # validated later in `token_handler.exchange_code_for_token`. If the
+            # policy needs scopes, it can introspect the code or be checked after
+            # issuance.
+            "launch_reason": launch_reason,
+            "launched_by": launched_by,
+        }
+        allowed = opa_client.query_bool_sync("allow_auth_code", input_data)
+        if not allowed:
+            raise ValueError("access_denied: denied_by_policy")
         return token_handler.exchange_code_for_token(
             client_id=client_id,
             code_plain=code_plain,
@@ -119,6 +134,17 @@ class OAuthEngine:
         launched_by: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Rotate refresh token and return new pair."""
+        # OPA authorization for refresh grant
+        from app.core.policy.opa_client import opa_client
+        input_data = {
+            "refresh_token": refresh_token_raw,
+            "requested_scope": scope,
+            "launch_reason": launch_reason,
+            "launched_by": launched_by,
+        }
+        allowed = opa_client.query_bool_sync("allow_refresh", input_data)
+        if not allowed:
+            raise ValueError("access_denied: denied_by_policy")
         return token_handler.refresh_token(
             refresh_token_raw=refresh_token_raw,
             scope=scope,
@@ -144,7 +170,6 @@ class OAuthEngine:
         Returns a dict indicating either a consent prompt or an auto-approved redirect response.
         """
         from urllib.parse import urlencode, urlparse, urlunparse
-        from app.core.registry import get_policy_engine
         from app.db.models import Agent
 
         # 1. Parameter validation
@@ -165,9 +190,15 @@ class OAuthEngine:
         # Prepare scopes list
         scopes_list = scope.split() if scope else []
 
-        # 3. Policy-driven consent check
-        policy_engine = get_policy_engine()
-        if policy_engine.requires_human_approval(client_id, scopes_list, response_type):
+        # OPA policy-driven consent check
+        from app.core.policy.opa_client import opa_client
+        consent_input = {
+            "client_id": client_id,
+            "scopes": scopes_list,
+            "response_type": response_type,
+        }
+        consent_required = opa_client.query_bool_sync("requires_human_approval", consent_input)
+        if consent_required:
             # Prompt the client/UI for consent
             return {
                 "consent_required": True,
@@ -223,6 +254,17 @@ class OAuthEngine:
         if not grant_id:
             # No delegation grant provided – treat as self-issued token.
             return None, requested_scopes  # self-issued
+
+        # OPA delegation policy check
+        from app.core.policy.opa_client import opa_client
+        deleg_input = {
+            "grant_id": grant_id,
+            "delegate_id": delegate_client_id,
+            "requested_scopes": requested_scopes,
+        }
+        allowed = opa_client.query_bool_sync("allow_delegation", deleg_input)
+        if not allowed:
+            raise ValueError("delegation_denied_by_policy")
 
         # Perform a **lazy import** here to avoid circular dependencies
         # between `app.core.oauth.engine` and `app.core.registry` which

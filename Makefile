@@ -3,7 +3,7 @@
 # Default target
 .DEFAULT_GOAL := dev
 
-.PHONY: server platform dev
+.PHONY: server platform dev opa
 
 # Start the FastAPI OAuth server
 server:
@@ -17,3 +17,7 @@ platform:
 dev:
 	poetry run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000 --log-config configs/logging.yml & \
 	cd platform && npm run dev
+
+# Start OPA for demo
+opa:
+	docker compose -f demo/docker-compose.yml up -d opa

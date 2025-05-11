@@ -40,6 +40,14 @@ class Config:
     # Scope Expansion Policy
     SCOPE_EXPANSION_POLICY = "standard"
 
+    # OPA integration settings
+    # Feature flag to enable/disable OPA policy enforcement
+    ENABLE_OPA_POLICIES = os.environ.get('ENABLE_OPA_POLICIES', 'False') == 'True'
+    # OPA server connection details and policy path
+    OPA_HOST = os.environ.get('OPA_HOST', 'http://localhost')
+    OPA_PORT = int(os.environ.get('OPA_PORT', 8181))
+    OPA_POLICY_PATH = os.environ.get('OPA_POLICY_PATH', 'agentictrust/authz/allow')
+
     @staticmethod
     def load_yaml(name, environment=None):
         """Load a YAML config by name using the util loader"""

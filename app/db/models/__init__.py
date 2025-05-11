@@ -7,9 +7,7 @@ from app.db.models.token import IssuedToken
 from app.db.models.authorization_code import AuthorizationCode
 from app.db.models.tool import Tool
 from app.db.models.audit.task_audit import TaskAuditLog
-from app.db.models.audit.policy_audit import PolicyAuditLog
 from app.db.models.scope import Scope
-from app.db.models.policy import Policy
 from app.db.models.user import User
 from app.db.models.audit.scope_audit import ScopeAuditLog
 from app.db.models.audit.token_audit import TokenAuditLog
@@ -42,9 +40,7 @@ __all__ = [
     'AuthorizationCode',
     'Tool',
     'TaskAuditLog',
-    'PolicyAuditLog',
     'Scope',
-    'Policy',
     'User',
     'ScopeAuditLog',
     'TokenAuditLog',

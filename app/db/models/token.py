@@ -388,10 +388,9 @@ class IssuedToken(Base):
                     action="token_issued",
                     decision="success",
                     resource_type="token",
-                    resource_id=new_token.token_id,
                     task_id=new_token.task_id,
                     parent_task_id=new_token.parent_task_id,
-                    context={"scopes": scope, "granted_tools": granted_tools}
+                    details={"scopes": scope, "granted_tools": granted_tools}
                 )
             except Exception as e:
                 audit_success = False

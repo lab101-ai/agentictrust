@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Body
 from typing import Dict, Any
 from app.core import get_user_engine
+from app.core.policy.opa_client import opa_client
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 engine = get_user_engine()
@@ -18,8 +19,12 @@ async def create_user(data: dict = Body(...)) -> Dict[str, Any]:
             job_title=data.get("job_title"),
             level=data.get("level"),
             scopes=data.get("scopes", []),
-            policies=data.get("policies", []),
         )
+        # Add OPA sync for new user
+        try:
+            opa_client.put_data(f"runtime/users/{user['user_id']}", user)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"OPA sync failed: {e}")
         return {"message": "User created successfully", "user": user}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -47,6 +52,11 @@ async def get_user(user_id: str) -> Dict[str, Any]:
 async def update_user(user_id: str, data: dict = Body(...)) -> Dict[str, Any]:
     try:
         updated = engine.update_user(user_id, data)
+        # Add OPA sync for updated user
+        try:
+            opa_client.put_data(f"runtime/users/{user_id}", updated)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"OPA sync failed: {e}")
         return {"message": "User updated successfully", "user": updated}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -57,6 +67,11 @@ async def update_user(user_id: str, data: dict = Body(...)) -> Dict[str, Any]:
 async def delete_user(user_id: str) -> Dict[str, Any]:
     try:
         engine.delete_user(user_id)
+        # Add OPA delete for removed user
+        try:
+            opa_client.delete_data(f"runtime/users/{user_id}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"OPA delete failed: {e}")
         return {"message": "User deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

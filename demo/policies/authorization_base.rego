@@ -1,39 +1,20 @@
-package demo.authz
+package agentictrust.authz
+import future.keywords.if
 
-# -------------------------------------------------------------
-#  Base policy helpers & global admin override
-# -------------------------------------------------------------
+default allow := false
 
-# Deny everything unless an `allow` rule evaluates to true.
-# NOTE: Only this file defines the default for `allow` so that
-# other modules can simply add more `allow` rules.
-default allow = false
-
-# -------------------------------------------------------------
-#  Helper rules / predicates
-# -------------------------------------------------------------
-
-# Ticket is explicitly marked public
-is_public_ticket(ticket) {
-    ticket.public == true
+is_public_ticket(ticket) if {
+    ticket.public
 }
-
-# User and resource share the same company (multi-tenant isolation)
-same_company(user, resource) {
+same_company(user, resource) if {
     user.company_id == resource.company_id
 }
-
-# Check user role string equality
-has_role(user, role) {
+has_role(user, role) if {
     user.role == role
 }
-
-# Re-usable admin test
-is_admin(user) {
+is_admin(user) if {
     has_role(user, "admin")
 }
-
-# Global override – admins may do anything
-allow {
+allow if {
     is_admin(input.user)
 }

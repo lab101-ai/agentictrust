@@ -34,141 +34,70 @@ const userStatsDisplay = document.getElementById('user-stats-display');
 const userStatsContent = document.getElementById('user-stats-content');
 
 let authToken = null;
-const API_BASE_URL = 'http://0.0.0.0:3002';
 
-// --- UI Visibility --- // 
-function updateUIVisibility(isLoggedIn) {
-    if (isLoggedIn) {
-        loginSection.style.display = 'none';
-        signupSection.style.display = 'none';
-        userInfoSection.style.display = 'block';
-        
-        const firstName = localStorage.getItem('firstName');
-        const lastName = localStorage.getItem('lastName');
-        const storedUsername = localStorage.getItem('username'); // Fallback email
-        const storedRole = localStorage.getItem('userRole');
-
-        let nameToShow = '';
-        if (firstName && lastName) {
-            nameToShow = `${firstName} ${lastName}`;
-        } else if (firstName) {
-            nameToShow = firstName;
-        } else if (lastName) {
-            nameToShow = lastName;
-        } else {
-            nameToShow = storedUsername; // Fallback to email
-        }
-        
-        displayUsername.textContent = nameToShow ? `${nameToShow}!` : 'User!';
-        displayRole.textContent = storedRole ? `(${storedRole})` : ''; // Display role in parentheses
-        
-        userStatsDisplay.style.display = 'block'; // Show user stats section
-    } else {
-        loginSection.style.display = 'block';
-        signupSection.style.display = 'none'; // Default to login form
-        userInfoSection.style.display = 'none';
-        userStatsDisplay.style.display = 'none'; // Hide user stats section
-        userStatsContent.innerHTML = 'Loading...'; // Reset user stats content
-        // usernameInput.value = ''; // Removed
-        // passwordInput.value = ''; // Removed
-        // Remove any error message that might exist
-        const existingError = document.getElementById('login-error');
-        if (existingError) {
-            existingError.remove();
-        }
-        ticketListBody.innerHTML = ''; // Clear user-specific tickets
-        // publicTicketListBody is populated by fetchPublicTickets, called in init
-        chatWindow.innerHTML = ''; // Clear chat
-    }
+// PKCE helper functions
+function generateCodeVerifier() {
+    const array = new Uint8Array(56);
+    window.crypto.getRandomValues(array);
+    return Array.from(array, b => ('0' + b.toString(16)).slice(-2)).join('');
+}
+async function generateCodeChallenge(codeVerifier) {
+    const data = new TextEncoder().encode(codeVerifier);
+    const digest = await window.crypto.subtle.digest('SHA-256', data);
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return base64;
 }
 
 // --- Authentication --- //
 loginBtn.addEventListener('click', async () => {
-    const selectedUsername = userSelectDropdown.value;
-    const dummyPassword = 'password123'; // Using the same password as in seed.py
-    
-    // Clear any previous error message
-    const existingError = document.getElementById('login-error');
-    if (existingError) {
-        existingError.remove();
-    }
+    const codeVerifier = generateCodeVerifier();
+    localStorage.setItem('pkce_code_verifier', codeVerifier);
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    const state = Math.random().toString(36).substring(2);
+    localStorage.setItem('pkce_state', state);
+    const authUrl = `${OAUTH_URL}/api/oauth/authorize?response_type=code` +
+        `&client_id=${encodeURIComponent(CLIENT_ID)}` +
+        `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+        `&scope=${encodeURIComponent(SCOPES)}` +
+        `&state=${encodeURIComponent(state)}` +
+        `&code_challenge=${encodeURIComponent(codeChallenge)}` +
+        `&code_challenge_method=S256`;
+    window.location.href = authUrl;
+});
 
-    if (!selectedUsername) {
-        // Create error element for the validation message
-        const loginError = document.createElement('p');
-        loginError.id = 'login-error';
-        loginError.className = 'error-message';
-        loginError.textContent = 'Please select a user.';
-        loginSection.appendChild(loginError);
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/token`,
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `username=${encodeURIComponent(selectedUsername)}&password=${encodeURIComponent(dummyPassword)}`,
-        });
-
-        if (response.ok) {
-            const data = await response.json();
+async function handleOAuthCallback() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('code')) {
+        const code = params.get('code');
+        const state = params.get('state');
+        const expected = localStorage.getItem('pkce_state');
+        if (state !== expected) {
+            console.error('Invalid OAuth state');
+            return;
+        }
+        const verifier = localStorage.getItem('pkce_code_verifier');
+        try {
+            const resp = await fetch(`${OAUTH_URL}/api/oauth/token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    grant_type: 'authorization_code',
+                    code: code,
+                    client_id: CLIENT_ID,
+                    redirect_uri: REDIRECT_URI,
+                    code_verifier: verifier
+                })
+            });
+            const data = await resp.json();
             authToken = data.access_token;
             localStorage.setItem('authToken', authToken);
-            localStorage.setItem('username', selectedUsername); // Store selected username
-            
-            // Fetch user details including role
-            try {
-                const userDetailsResponse = await fetch(`${API_BASE_URL}/users/me`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                if (userDetailsResponse.ok) {
-                    const userDetails = await userDetailsResponse.json();
-                    localStorage.setItem('userRole', userDetails.role || 'N/A'); // Store role
-                    localStorage.setItem('firstName', userDetails.first_name || ''); // Store first name
-                    localStorage.setItem('lastName', userDetails.last_name || '');   // Store last name
-                } else {
-                    console.error('Failed to fetch user details for role');
-                    localStorage.setItem('userRole', 'N/A'); // Default if fetch fails
-                }
-            } catch (error) {
-                console.error('Error fetching user details for role:', error);
-                localStorage.setItem('userRole', 'N/A'); // Default on error
-            }
-
-            updateUIVisibility(true);
-            fetchTickets(); // Fetch user-specific tickets
-            fetchAndDisplayUserStats(); // Fetch and display user-specific stats
-        } else {
-            const errorData = await response.json();
-            const errorMessage = errorData.detail || `Login failed for ${selectedUsername}. Ensure server is running and user exists with password 'password123'.`;
-            
-            // Create error element if it doesn't exist, or get existing one
-            let loginError = document.getElementById('login-error');
-            if (!loginError) {
-                loginError = document.createElement('p');
-                loginError.id = 'login-error';
-                loginError.className = 'error-message';
-                loginSection.appendChild(loginError);
-            }
-            loginError.textContent = errorMessage;
+        } catch (e) {
+            console.error('Token exchange failed', e);
         }
-    } catch (error) {
-        console.error('Login error:', error);
-        
-        // Create error element if it doesn't exist, or get existing one
-        let loginError = document.getElementById('login-error');
-        if (!loginError) {
-            loginError = document.createElement('p');
-            loginError.id = 'login-error';
-            loginError.className = 'error-message';
-            loginSection.appendChild(loginError);
-        }
-        loginError.textContent = 'An error occurred during login.';
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
-});
+}
 
 logoutBtn.addEventListener('click', () => {
     authToken = null;
@@ -195,7 +124,7 @@ signupBtn.addEventListener('click', async () => {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/signup`, {
+        const response = await fetch(`${OAUTH_URL}/api/signup`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -229,7 +158,7 @@ async function fetchTickets() { // User-specific tickets
     if (!authToken) return;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/tickets`, {
+        const response = await fetch(`${OAUTH_URL}/api/tickets`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         if (response.ok) {
@@ -247,7 +176,7 @@ async function fetchTickets() { // User-specific tickets
 
 async function fetchPublicTickets() {
     try {
-        const response = await fetch(`${API_BASE_URL}/public_tickets`);
+        const response = await fetch(`${OAUTH_URL}/api/public_tickets`);
         if (response.ok) {
             const tickets = await response.json();
             renderTickets(tickets, publicTicketListBody, true); // Public Tickets table
@@ -323,7 +252,7 @@ function renderTickets(tickets, tableBodyElement, isPublicTable) {
 // --- Statistics Functions ---
 async function fetchAndDisplayOverallStats() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/stats/overall_tickets`);
+        const response = await fetch(`${OAUTH_URL}/api/stats/overall_tickets`);
         if (response.ok) {
             const stats = await response.json();
             overallStatsContent.innerHTML = 
@@ -343,7 +272,7 @@ async function fetchAndDisplayOverallStats() {
 async function fetchAndDisplayCompanyStats() {
     companyStatsList.innerHTML = '<li>Loading...</li>';
     try {
-        const response = await fetch(`${API_BASE_URL}/api/stats/company_tickets`);
+        const response = await fetch(`${OAUTH_URL}/api/stats/company_tickets`);
         if (response.ok) {
             const stats = await response.json();
             companyStatsList.innerHTML = ''; // Clear loading/previous
@@ -375,7 +304,7 @@ async function fetchAndDisplayUserStats() {
     userStatsDisplay.style.display = 'block'; 
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/stats/user_ticket_status`, {
+        const response = await fetch(`${OAUTH_URL}/api/stats/user_ticket_status`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         if (response.ok) {
@@ -423,7 +352,7 @@ async function sendChatMessage() {
             headers['Authorization'] = `Bearer ${authToken}`;
         }
 
-        const response = await fetch(`${API_BASE_URL}/chat`, {
+        const response = await fetch(`${OAUTH_URL}/chat`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({ query: messageText })
@@ -462,7 +391,7 @@ function appendMessage(message, className) {
 // --- Initialization --- //
 async function fetchAndPopulateUsers() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/users`);
+        const response = await fetch(`${OAUTH_URL}/api/users`);
         if (!response.ok) {
             console.error('Failed to fetch users for dropdown');
             userSelectDropdown.innerHTML = '<option value="">Error loading users</option>';
@@ -482,7 +411,8 @@ async function fetchAndPopulateUsers() {
     }
 }
 
-function init() {
+async function init() {
+    await handleOAuthCallback();
     authToken = localStorage.getItem('authToken');
     fetchPublicTickets(); // Always fetch public tickets on load
     fetchAndPopulateUsers(); // Fetch and populate users for the dropdown
@@ -497,6 +427,51 @@ function init() {
     }
     fetchAndDisplayOverallStats(); // Fetch overall stats
     fetchAndDisplayCompanyStats(); // Fetch company stats
+}
+
+function updateUIVisibility(isLoggedIn) {
+    if (isLoggedIn) {
+        loginSection.style.display = 'none';
+        signupSection.style.display = 'none';
+        userInfoSection.style.display = 'block';
+        
+        const firstName = localStorage.getItem('firstName');
+        const lastName = localStorage.getItem('lastName');
+        const storedUsername = localStorage.getItem('username'); // Fallback email
+        const storedRole = localStorage.getItem('userRole');
+
+        let nameToShow = '';
+        if (firstName && lastName) {
+            nameToShow = `${firstName} ${lastName}`;
+        } else if (firstName) {
+            nameToShow = firstName;
+        } else if (lastName) {
+            nameToShow = lastName;
+        } else {
+            nameToShow = storedUsername; // Fallback to email
+        }
+        
+        displayUsername.textContent = nameToShow ? `${nameToShow}!` : 'User!';
+        displayRole.textContent = storedRole ? `(${storedRole})` : ''; // Display role in parentheses
+        
+        userStatsDisplay.style.display = 'block'; // Show user stats section
+    } else {
+        loginSection.style.display = 'block';
+        signupSection.style.display = 'none'; // Default to login form
+        userInfoSection.style.display = 'none';
+        userStatsDisplay.style.display = 'none'; // Hide user stats section
+        userStatsContent.innerHTML = 'Loading...'; // Reset user stats content
+        // usernameInput.value = ''; // Removed
+        // passwordInput.value = ''; // Removed
+        // Remove any error message that might exist
+        const existingError = document.getElementById('login-error');
+        if (existingError) {
+            existingError.remove();
+        }
+        ticketListBody.innerHTML = ''; // Clear user-specific tickets
+        // publicTicketListBody is populated by fetchPublicTickets, called in init
+        chatWindow.innerHTML = ''; // Clear chat
+    }
 }
 
 init();

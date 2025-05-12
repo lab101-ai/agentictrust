@@ -16,7 +16,7 @@ from .auth import create_token, get_current_user, get_optional_current_user, get
 from .agent import get_agent_response
 from .seed import seed_data
 
-load_dotenv("demo/app/.env")
+load_dotenv(dotenv_path="demo/.env")
 
 # Create FastAPI app
 app = FastAPI(title="Customer Support Demo")
@@ -39,7 +39,16 @@ app.add_middleware(
 # Serve index.html
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "oauth_url": os.getenv("OAUTH_URL", ""),
+            "client_id": os.getenv("CLIENT_ID", ""),
+            "redirect_uri": os.getenv("REDIRECT_URI", ""),
+            "scopes": os.getenv("SCOPES", ""),
+        }
+    )
 
 # Initialize the database on startup
 @app.on_event("startup")

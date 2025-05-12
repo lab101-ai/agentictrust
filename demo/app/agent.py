@@ -3,16 +3,16 @@ from sdk.client import AgenticTrustClient
 from openai import OpenAI
 from typing import Optional
 
-# Get your OpenAI API key from environment variables to avoid hard-coding secrets
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")  # noqa: S105 – handled via env var; fallback empty
-openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None  # Lazily initialise if key is present
-
 # Initialize the AgenticTrustClient with API base
 client = AgenticTrustClient(
     api_base="http://localhost:8000"
 )
 
 def get_agent_response(prompt: str, first_name: Optional[str] = None, last_name: Optional[str] = None):
+    # Get your OpenAI API key from environment variables to avoid hard-coding secrets
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")  # noqa: S105 – handled via env var; fallback empty
+    openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None  # Lazily initialise if key is present
+    
     # Personalize greeting if names are provided
     personalized_prompt = prompt
     user_identifier = ""

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from typing import Dict, Any, Optional
 from agentictrust.schemas.oauth import (
     TokenRequest,
@@ -235,6 +235,27 @@ async def check_token_access(body: Dict[str, Any]) -> Dict[str, Any]:
     return {"access": access}
 
 @router.get("/authorize")
+async def authorize(request: Request) -> Any:
+    """Authorization Code (PKCE) endpoint"""
+    # Extract query params
+    params = request.query_params
+    resp = engine.authorize_request(
+        response_type=params.get("response_type"),
+        client_id=params.get("client_id"),
+        redirect_uri=params.get("redirect_uri"),
+        scope=params.get("scope"),
+        state=params.get("state"),
+        code_challenge=params.get("code_challenge"),
+        code_challenge_method=params.get("code_challenge_method", "S256"),
+    )
+    if resp.get("consent_required"):
+        # Return JSON for consent prompt (UI integration required)
+        return JSONResponse(status_code=200, content=resp)
+    # Auto-approved: perform redirect
+    redirect_url = resp.get("redirect_url")
+    return RedirectResponse(url=redirect_url)
+
+@router.post("/authorize")
 async def authorize_endpoint(
     response_type: str,
     client_id: str,

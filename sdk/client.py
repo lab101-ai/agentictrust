@@ -15,6 +15,7 @@ from .tokens import TokenClient
 from .tools import ToolClient
 from .scopes import ScopesClient
 from .policies import PoliciesClient
+from .delegations import DelegationsClient
 
 # Import configuration
 from .config import Configuration, default_config
@@ -71,6 +72,7 @@ class AgenticTrustClient:
         self.tool = ToolClient(self)
         self.scopes = ScopesClient(self)
         self.policies = PoliciesClient(self)
+        self.delegations = DelegationsClient(self)
 
     @property
     def api_base(self) -> str:

@@ -1,0 +1,7 @@
+app:
+  port: 8000
+  database_url: sqlite:///./.agentictrust/db/demo.db
+sdk:
+  api_key: ${AGENTIC_TRUST_API_KEY}
+frontend:
+  url: http://localhost:3002

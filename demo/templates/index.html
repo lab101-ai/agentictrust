@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support Chat & Tickets</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Left Sidebar: Authentication and User Info -->
+        <aside class="sidebar left-sidebar">
+            <!-- This sidebar will be empty after moving user-auth-zone -->
+        </aside>
+
+        <!-- Center Content: Tickets Table -->
+        <main class="center-content">
+            <h1>Customer Support Tickets</h1>
+
+            <div id="statistics-section">
+                <div id="overall-stats-display">
+                    <p id="overall-stats-content">Loading...</p>
+                </div>
+                <div id="company-stats-display">
+                    <ul id="company-stats-list"><li>Loading...</li></ul>
+                </div>
+                <div id="user-stats-display" style="display: none;">
+                    <p id="user-stats-content">Loading...</p>
+                </div>
+                
+                <div id="user-auth-zone">
+                    <!-- Logged-out state: Login Form -->
+                    <div id="login-section">
+                        <select id="user-select-dropdown" style="width: 100%; padding: 8px; margin-bottom: 10px;" placeholder="Select User">
+                            <option value="">-- Select User --</option>
+                        </select>
+                        <button id="login-btn">Login</button>
+                        <!-- Error message will be added here only when needed -->
+                    </div>
+    
+                    <!-- Logged-out state: Signup Form (hidden initially) -->
+                    <div id="signup-section" style="display: none;">
+                        <h2>Sign Up</h2>
+                        <input type="text" id="signup-username" placeholder="Username"><br>
+                        <input type="password" id="signup-password" placeholder="Password"><br>
+                        <button id="signup-btn">Sign Up</button>
+                        <p id="signup-message" class="message"></p>
+                        <p>Already have an account? <a href="#" id="show-login-link">Login</a></p>
+                    </div>
+    
+                    <!-- Logged-in state (hidden initially) -->
+                    <div id="user-info-section" style="display: none;">
+                        <h3>Welcome, <span id="display-username"></span>! (<span id="display-role"></span>)</h3>
+                        <button id="logout-btn">Logout</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tickets-section">
+                <h2>My Tickets</h2>
+                <table id="my-tickets-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Public</th>
+                            <th>Owner</th>
+                            <th>Company</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ticket-list-body">
+                        <!-- User's tickets will be populated here -->
+                    </tbody>
+                </table>
+
+                <div id="public-tickets-section">
+                    <h3>Public Tickets</h3>
+                    <table id="public-tickets-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th>Owner</th>
+                                <th>Company</th>
+                            </tr>
+                        </thead>
+                        <tbody id="public-ticket-list-body">
+                            <!-- Public tickets will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Chat and Statistics -->
+        <aside class="sidebar right-sidebar">
+            <div id="chat-section">
+                <div class="chat-header">Support Bot</div>
+                <div id="chat-window">
+                    <!-- Messages will appear here -->
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Type your message...">
+                    <button id="send-chat-btn">Send</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

@@ -157,34 +157,7 @@ const POLICY_TEMPLATES = [
       is_active: true
     }
   },
-  {
-    id: "multi-factor",
-    name: "Multi-Factor Authenticated",
-    description: "Allow access only for users with MFA enabled",
-    icon: Lock,
-    category: "Security",
-    template: {
-      name: "Multi-Factor Authentication Required",
-      description: "Allow access only for users with MFA enabled",
-      effect: "allow" as const,
-      conditions: {
-        and: [
-          {
-            attribute: "agent.authenticated",
-            operator: "eq",
-            value: true
-          },
-          {
-            attribute: "agent.mfa_verified",
-            operator: "eq",
-            value: true
-          }
-        ]
-      },
-      priority: 25,
-      is_active: true
-    }
-  }
+
 ];
 
 export default function PolicyTemplatesPage() {

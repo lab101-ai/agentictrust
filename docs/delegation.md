@@ -49,46 +49,7 @@ response = requests.post(
 delegated_token = response.json()["access_token"]
 ```
 
-## MFA for Critical Operations
 
-For sensitive operations, multi-factor authentication can be required:
-
-```python
-# Create MFA challenge
-challenge_response = requests.post(
-    "https://api.example.com/users/user-123/mfa/challenge",
-    params={"operation_type": "token_delegation"}
-)
-
-challenge_id = challenge_response.json()["challenge_id"]
-
-# Verify MFA challenge
-requests.post(
-    "https://api.example.com/users/user-123/mfa/challenge/verify",
-    json={
-        "challenge_id": challenge_id,
-        "code": "123456"  # TOTP code from authenticator app
-    }
-)
-
-# Request delegated token with MFA
-response = requests.post(
-    "https://api.example.com/oauth/delegate/mfa",
-    json={
-        "client_id": "agent-456",
-        "delegation_type": "human_to_agent",
-        "delegator_token": "user-auth0-token",
-        "scope": ["read:data", "write:data"],
-        "task_description": "Update user data",
-        "task_id": "task-789",
-        "purpose": "Data update"
-    },
-    params={
-        "mfa_challenge_id": challenge_id,
-        "mfa_code": "123456"
-    }
-)
-```
 
 ## Audit Logging
 

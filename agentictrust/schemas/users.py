@@ -23,8 +23,6 @@ class CreateUserRequest(BaseModel):
     auth0_metadata: Optional[Dict[str, Any]] = None
     social_provider: Optional[str] = None
     social_provider_id: Optional[str] = None
-    mfa_enabled: Optional[bool] = False
-    mfa_type: Optional[str] = None
 
 class UpdateUserRequest(BaseModel):
     username: Optional[str] = None
@@ -41,8 +39,6 @@ class UpdateUserRequest(BaseModel):
     social_provider: Optional[str] = None
     social_provider_id: Optional[str] = None
     last_login: Optional[str] = None
-    mfa_enabled: Optional[bool] = None
-    mfa_type: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -61,5 +57,4 @@ class UserProfile(BaseModel):
     is_external: bool
     scopes: List[str]
     auth0_metadata: Optional[Dict[str, Any]] = None
-    mfa_enabled: bool
     picture: Optional[str] = None

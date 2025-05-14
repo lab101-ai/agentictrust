@@ -50,48 +50,16 @@ def delegate_token(agent_id, user_token):
     """Request delegated token from user to agent."""
     print(f"Requesting delegated token for agent {agent_id}...")
     
-    use_mfa = True
+    use_mfa = False
     
-    if use_mfa:
-        challenge_response = client.create_mfa_challenge(
-            user_id="user-123",
-            operation_type="token_delegation"
-        )
-        
-        challenge_id = challenge_response["challenge_id"]
-        print(f"MFA challenge created: {challenge_id}")
-        
-        mfa_code = input("Enter MFA code: ")
-        
-        verify_response = client.verify_mfa_challenge(
-            user_id="user-123",
-            challenge_id=challenge_id,
-            code=mfa_code
-        )
-        
-        if not verify_response["verified"]:
-            print("MFA verification failed")
-            return None
-        
-        token_response = client.delegate_token_with_mfa(
-            client_id=agent_id,
-            delegator_token=user_token,
-            scopes=["read:data"],
-            mfa_challenge_id=challenge_id,
-            mfa_code=mfa_code,
-            task_description="Analyze user data",
-            task_id="task-789",
-            purpose="Data analysis"
-        )
-    else:
-        token_response = client.delegate_token(
-            client_id=agent_id,
-            delegator_token=user_token,
-            scopes=["read:data"],
-            task_description="Analyze user data",
-            task_id="task-789",
-            purpose="Data analysis"
-        )
+    token_response = client.delegate_token(
+        client_id=agent_id,
+        delegator_token=user_token,
+        scopes=["read:data"],
+        task_description="Analyze user data",
+        task_id="task-789",
+        purpose="Data analysis"
+    )
     
     print(f"Delegated token received: {token_response['access_token'][:10]}...")
     

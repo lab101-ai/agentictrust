@@ -145,27 +145,7 @@ The following tasks outline the implementation plan to make AgenticTrust compati
 - Permissions are enforced based on roles
 - Roles can be managed through UI
 
-### Task 7: Multi-Factor Authentication for Critical Agent Operations
-
-**Description:** Implement MFA requirements for critical agent operations, similar to Auth0's MFA features.
-
-**Subtasks:**
-1. Implement MFA for human users
-2. Add MFA verification for critical agent operations
-3. Create MFA policy configuration
-4. Implement MFA challenge/response flow
-
-**Files to Modify:**
-- Create: `agentictrust/core/auth/mfa.py`
-- Modify: `agentictrust/routers/oauth.py`
-- Modify: `agentictrust/routers/agents.py`
-
-**Acceptance Criteria:**
-- MFA can be required for sensitive operations
-- MFA policies can be configured
-- MFA challenges are properly verified
-
-### Task 8: Documentation and SDK Updates
+### Task 7: Documentation and SDK Updates
 
 **Description:** Update documentation and SDK to support the new Auth0-like features.
 
@@ -201,7 +181,7 @@ When implementing these features, the following security considerations must be 
 - **Phase 1 (Weeks 1-2)**: Tasks 1-2 - Human User Model and User-Agent Authorization
 - **Phase 2 (Weeks 3-4)**: Tasks 3-4 - Token Delegation and Policy-Based Authorization
 - **Phase 3 (Weeks 5-6)**: Tasks 5-6 - Enhanced Audit Logging and RBAC
-- **Phase 4 (Weeks 7-8)**: Tasks 7-8 - MFA and Documentation
+- **Phase 4 (Weeks 7-8)**: Task 7 - Documentation
 
 ## Conclusion
 

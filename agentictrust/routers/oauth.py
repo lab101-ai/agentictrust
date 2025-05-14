@@ -278,56 +278,6 @@ async def delegate_token(request: DelegationTokenRequest):
         logger.error(f"Error processing delegation request: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/delegate/mfa", response_model=DelegationTokenResponse)
-async def delegate_token_with_mfa(request: DelegationTokenRequest, mfa_challenge_id: str, mfa_code: str):
-    """Issue a delegated token with MFA verification."""
-    try:
-        from agentictrust.core.auth.mfa import MFAManager
-        
-        # Extract user ID from token
-        delegator_token = request.delegator_token
-        delegator_claims = None
-        user = None
-        
-        try:
-            from agentictrust.core.auth.auth0 import verify_auth0_token, extract_user_from_claims
-            delegator_claims = await verify_auth0_token(delegator_token, "auth0_domain")
-            user_data = extract_user_from_claims(delegator_claims)
-            
-            from agentictrust.core.users.engine import UserEngine
-            user_engine = UserEngine()
-            user = user_engine.find_user_by_auth0_id(user_data['auth0_id'])
-        except Exception:
-            from agentictrust.core.oauth.utils import verify_token
-            token_obj = verify_token(delegator_token)
-            
-            if not token_obj:
-                raise HTTPException(status_code=400, detail="Invalid delegator token")
-            
-            from agentictrust.db.models.user import User
-            user = User.query.filter_by(user_id=token_obj.delegator_sub).first()
-        
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        is_valid = MFAManager.verify_challenge(mfa_challenge_id, mfa_code, user.user_id)
-        
-        if not is_valid:
-            raise HTTPException(status_code=400, detail="Invalid MFA challenge or code")
-        
-        if request.delegation_type == DelegationType.HUMAN_TO_AGENT:
-            response = await engine.process_human_delegation(request)
-        elif request.delegation_type == DelegationType.AGENT_TO_AGENT:
-            raise HTTPException(status_code=400, detail="Agent-to-agent delegation not yet implemented")
-        else:
-            raise HTTPException(status_code=400, detail="Invalid delegation type")
-        
-        return DelegationTokenResponse(**response)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error processing delegation request with MFA: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/authorize")
 async def authorize_endpoint(

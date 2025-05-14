@@ -53,12 +53,7 @@ We are working to make AgenticTrust compatible with Auth0 for agents, implementi
    - Add permission checks to resource access
    - Create role management UI
 
-7. **Multi-Factor Authentication for Critical Operations**
-   - Implement MFA for human users
-   - Add MFA verification for critical agent operations
-   - Create MFA policy configuration
-
-8. **Documentation and SDK Updates**
+7. **Documentation and SDK Updates**
    - Update API documentation
    - Create delegation examples
    - Update SDK with delegation support
@@ -285,4 +280,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT    
+MIT      

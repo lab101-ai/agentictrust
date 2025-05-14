@@ -40,9 +40,6 @@ class User(Base):
     social_provider_id = Column(String(100), nullable=True)
     last_login = Column(DateTime, nullable=True)
     refresh_token = Column(String(512), nullable=True)
-    mfa_enabled = Column(Boolean, default=False)
-    mfa_type = Column(String(50), nullable=True)  # e.g., 'sms', 'totp', 'push'
-    mfa_secret = Column(String(100), nullable=True)  # For TOTP secret
 
     scopes = relationship('Scope', secondary=user_scopes, backref='users')
     
@@ -142,8 +139,6 @@ class User(Base):
             'auth0_id': self.auth0_id,
             'social_provider': self.social_provider,
             'last_login': self.last_login.isoformat() if self.last_login else None,
-            'mfa_enabled': self.mfa_enabled,
-            'mfa_type': self.mfa_type,
             'auth0_metadata': self.get_auth0_metadata()
         }
 

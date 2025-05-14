@@ -1,12 +1,12 @@
 """Tests for Policy-Based Authorization for Delegated Tokens."""
 import pytest
 from unittest import mock
-from app.core.oauth.token_handler import TokenHandler
-from app.core.policy.opa_client import OPAClient
+from agentictrust.core.oauth.token_handler import TokenHandler
+from agentictrust.core.policy.opa_client import OPAClient
 
 def test_delegation_policy_validation_success(test_db):
     """Test successful policy validation for delegated tokens."""
-    with mock.patch("app.core.policy.opa_client.OPAClient.check_policy") as mock_check:
+    with mock.patch("agentictrust.core.policy.opa_client.OPAClient.check_policy") as mock_check:
         mock_check.return_value = {
             "result": {
                 "allow": True,
@@ -36,7 +36,7 @@ def test_delegation_policy_validation_success(test_db):
 
 def test_delegation_policy_validation_failure(test_db):
     """Test policy validation failure for delegated tokens."""
-    with mock.patch("app.core.policy.opa_client.OPAClient.check_policy") as mock_check:
+    with mock.patch("agentictrust.core.policy.opa_client.OPAClient.check_policy") as mock_check:
         mock_check.return_value = {
             "result": {
                 "allow": False,

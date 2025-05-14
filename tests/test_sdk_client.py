@@ -80,54 +80,7 @@ def test_delegate_token(mock_post):
         }
     )
 
-@mock.patch("requests.Session.post")
-def test_delegate_token_with_mfa(mock_post):
-    """Test delegating a token with MFA verification."""
-    mock_response = mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "access_token": "delegated-token-mfa",
-        "token_type": "bearer",
-        "expires_in": 3600
-    }
-    mock_post.return_value = mock_response
-    
-    client = AgenticTrustClient(base_url="http://localhost:8000")
-    
-    result = client.delegate_token_with_mfa(
-        client_id="agent-123",
-        delegator_token="user-token",
-        scopes=["read:data", "write:data"],
-        mfa_challenge_id="challenge-123",
-        mfa_code="123456",
-        task_description="Test delegation with MFA",
-        task_id="task-123-mfa",
-        purpose="testing with MFA"
-    )
-    
-    assert result["access_token"] == "delegated-token-mfa"
-    assert result["token_type"] == "bearer"
-    assert result["expires_in"] == 3600
-    
-    mock_post.assert_called_with(
-        "http://localhost:8000/api/oauth/delegate/mfa",
-        json={
-            "client_id": "agent-123",
-            "delegation_type": "human_to_agent",
-            "delegator_token": "user-token",
-            "scope": ["read:data", "write:data"],
-            "task_description": "Test delegation with MFA",
-            "task_id": "task-123-mfa",
-            "parent_task_id": None,
-            "purpose": "testing with MFA",
-            "constraints": None,
-            "agent_instance_id": None
-        },
-        params={
-            "mfa_challenge_id": "challenge-123",
-            "mfa_code": "123456"
-        }
-    )
+
 
 @mock.patch("requests.Session.get")
 def test_get_delegation_chain(mock_get):

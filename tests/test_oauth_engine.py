@@ -2,9 +2,9 @@
 import pytest
 import secrets
 from datetime import datetime, timedelta
-from app.db.models import Agent, IssuedToken
-from app.db.models.authorization_code import AuthorizationCode
-from app.core.oauth.utils import pkce_verify
+from agentictrust.db.models import Agent, IssuedToken
+from agentictrust.db.models.authorization_code import AuthorizationCode
+from agentictrust.core.oauth.utils import pkce_verify
 
 def test_create_authorization_code(test_db, oauth_engine):
     """Test creating an authorization code using the refactored OAuth engine."""

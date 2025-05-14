@@ -1,6 +1,6 @@
 """End-to-end tests for user management."""
 import pytest
-from app.db.models import User
+from agentictrust.db.models import User
 
 def test_create_user(test_db, user_engine):
     """Test creating a new user."""

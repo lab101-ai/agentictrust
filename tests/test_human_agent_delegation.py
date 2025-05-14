@@ -1,8 +1,8 @@
 """Tests for Human-to-Agent Token Delegation."""
 import pytest
 from unittest import mock
-from app.core.oauth.engine import OAuthEngine
-from app.db.models import IssuedToken
+from agentictrust.core.oauth.engine import OAuthEngine
+from agentictrust.db.models import IssuedToken
 
 def test_delegate_token_from_human_to_agent(test_db, sample_user, sample_agent, oauth_engine):
     """Test delegating a token from a human user to an agent."""
@@ -19,7 +19,7 @@ def test_delegate_token_from_human_to_agent(test_db, sample_user, sample_agent, 
         launch_reason="test"
     )
     
-    with mock.patch("app.db.models.user_agent_authorization.UserAgentAuthorization.check_authorization") as mock_check:
+    with mock.patch("agentictrust.db.models.user_agent_authorization.UserAgentAuthorization.check_authorization") as mock_check:
         mock_check.return_value = True
         
         delegated_token = oauth_engine.delegate_token(
@@ -63,7 +63,7 @@ def test_delegate_token_unauthorized_agent(test_db, sample_user, sample_agent, o
         launch_reason="test"
     )
     
-    with mock.patch("app.db.models.user_agent_authorization.UserAgentAuthorization.check_authorization") as mock_check:
+    with mock.patch("agentictrust.db.models.user_agent_authorization.UserAgentAuthorization.check_authorization") as mock_check:
         mock_check.return_value = False
         
         with pytest.raises(Exception) as excinfo:

@@ -1,7 +1,7 @@
 """Tests for User-Agent Authorization model."""
 import pytest
 from datetime import datetime, timedelta
-from app.db.models.user_agent_authorization import UserAgentAuthorization
+from agentictrust.db.models.user_agent_authorization import UserAgentAuthorization
 
 def test_create_user_agent_authorization(test_db, sample_user, sample_agent):
     """Test creating a user-agent authorization."""

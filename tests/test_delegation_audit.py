@@ -1,7 +1,7 @@
 """Tests for Enhanced Audit Logging for Delegation."""
 import pytest
 from datetime import datetime
-from app.db.models.audit.delegation_audit import DelegationAuditLog
+from agentictrust.db.models.audit.delegation_audit import DelegationAuditLog
 
 def test_create_delegation_audit_log(test_db, sample_user, sample_agent):
     """Test creating a delegation audit log."""

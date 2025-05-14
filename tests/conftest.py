@@ -12,18 +12,18 @@ sys.modules['app.db'] = __import__('agentictrust.db', fromlist=[''])
 sys.modules['app.db.models'] = __import__('agentictrust.db.models', fromlist=[''])
 sys.modules['app.core'] = __import__('agentictrust.core', fromlist=[''])
 
-from app.db import Base, db_session
-from app.db.models import User, Agent, Tool, Scope
-from app.core.users.engine import UserEngine
-from app.core.agents.engine import AgentEngine
-from app.core.tools.engine import ToolEngine
-from app.core.scope.engine import ScopeEngine
+from agentictrust.db import Base, db_session
+from agentictrust.db.models import User, Agent, Tool, Scope
+from agentictrust.core.users.engine import UserEngine
+from agentictrust.core.agents.engine import AgentEngine
+from agentictrust.core.tools.engine import ToolEngine
+from agentictrust.core.scope.engine import ScopeEngine
 class PolicyEngine:
     """Mock PolicyEngine for testing."""
     @staticmethod
     def get_instance():
         return PolicyEngine()
-from app.core.oauth.engine import OAuthEngine
+from agentictrust.core.oauth.engine import OAuthEngine
 
 @pytest.fixture(scope="session")
 def test_db():
@@ -161,7 +161,7 @@ def mock_auth0_response():
 @pytest.fixture
 def mock_auth0_client():
     """Create a mocked Auth0 OAuth client."""
-    with mock.patch('app.core.auth.auth0.OAuth') as mock_oauth:
+    with mock.patch('agentictrust.core.auth.auth0.OAuth') as mock_oauth:
         mock_client = mock.MagicMock()
         mock_oauth.return_value.create_client.return_value = mock_client
         yield mock_client
@@ -176,9 +176,7 @@ def sample_auth0_user(test_db):
         auth0_id="auth0|123456789",
         auth0_metadata=json.dumps({"role":"user"}),
         social_provider="google",
-        social_provider_id="google|123456789",
-        mfa_enabled=True,
-        mfa_type="totp"
+        social_provider_id="google|123456789"
     )
     yield user
     try:
@@ -189,7 +187,7 @@ def sample_auth0_user(test_db):
 @pytest.fixture
 def sample_user_agent_authorization(test_db, sample_user, sample_agent):
     """Create a sample user-agent authorization for testing."""
-    from app.db.models.user_agent_authorization import UserAgentAuthorization
+    from agentictrust.db.models.user_agent_authorization import UserAgentAuthorization
     auth = UserAgentAuthorization.create(
         user_id=sample_user.user_id,
         agent_id=sample_agent.client_id,

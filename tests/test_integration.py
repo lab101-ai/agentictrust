@@ -1,9 +1,9 @@
 """Integration tests between users, agents, and tools."""
 import pytest
-from app.db.models import User, Agent, Tool, Scope, Policy
-from app.core.users.engine import UserEngine
-from app.core.agents.engine import AgentEngine
-from app.core.tools.engine import ToolEngine
+from agentictrust.db.models import User, Agent, Tool, Scope, Policy
+from agentictrust.core.users.engine import UserEngine
+from agentictrust.core.agents.engine import AgentEngine
+from agentictrust.core.tools.engine import ToolEngine
 
 def test_end_to_end_workflow(test_db, user_engine, agent_engine, tool_engine):
     """Test the full workflow of creating users, agents, and tools and their interactions."""

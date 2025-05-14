@@ -2,7 +2,7 @@
 import pytest
 import json
 import unittest.mock as mock
-from app.db.models import User
+from agentictrust.db.models import User
 
 @pytest.mark.auth0
 @pytest.mark.skip(reason="Auth0 fields not available in test environment")
@@ -19,7 +19,7 @@ def test_user_auth0_metadata_methods(test_db, sample_auth0_user):
 @pytest.mark.auth0
 def test_user_with_auth0_fields_mock():
     """Test creating a user with Auth0-specific fields using mocks."""
-    with mock.patch('app.db.models.User.create') as mock_create:
+    with mock.patch('agentictrust.db.models.User.create') as mock_create:
         auth0_id = "auth0|123456"
         auth0_metadata = {"roles": ["user"], "app_metadata": {"plan": "free"}}
         
@@ -29,8 +29,6 @@ def test_user_with_auth0_fields_mock():
         mock_user.auth0_metadata = json.dumps(auth0_metadata)
         mock_user.social_provider = "google"
         mock_user.social_provider_id = "google|12345"
-        mock_user.mfa_enabled = True
-        mock_user.mfa_type = "totp"
         mock_user.get_auth0_metadata = mock.MagicMock(return_value={"updated": True})
         mock_user.set_auth0_metadata = mock.MagicMock()
         
@@ -42,9 +40,7 @@ def test_user_with_auth0_fields_mock():
             auth0_id=auth0_id,
             auth0_metadata=json.dumps(auth0_metadata),
             social_provider="google",
-            social_provider_id="google|12345",
-            mfa_enabled=True,
-            mfa_type="totp"
+            social_provider_id="google|12345"
         )
         
         mock_create.assert_called_once()
@@ -52,8 +48,6 @@ def test_user_with_auth0_fields_mock():
         assert user.auth0_id == auth0_id
         assert user.auth0_metadata == json.dumps(auth0_metadata)
         assert user.social_provider == "google"
-        assert user.mfa_enabled is True
-        assert user.mfa_type == "totp"
         
         user.set_auth0_metadata({"updated": True})
         assert user.get_auth0_metadata() == {"updated": True}

@@ -1,8 +1,8 @@
 """Tests for Role-Based Access Control for Agents."""
 import pytest
 from unittest import mock
-from app.db.models.role import Role
-from app.db.models.permission import Permission
+from agentictrust.db.models.role import Role
+from agentictrust.db.models.permission import Permission
 
 def test_create_role_and_permission(test_db):
     """Test creating a role and permission."""
@@ -49,7 +49,7 @@ def test_assign_role_to_agent(test_db, sample_agent):
 
 def test_rbac_policy_validation(test_db):
     """Test RBAC policy validation."""
-    with mock.patch("app.core.policy.opa_client.OPAClient.check_policy") as mock_check:
+    with mock.patch("agentictrust.core.policy.opa_client.OPAClient.check_policy") as mock_check:
         mock_check.return_value = {
             "result": {
                 "allow": True,
@@ -57,7 +57,7 @@ def test_rbac_policy_validation(test_db):
             }
         }
         
-        from app.routers.oauth import verify_with_rbac
+        from agentictrust.routers.oauth import verify_with_rbac
         
         result = verify_with_rbac(
             token="test-token",

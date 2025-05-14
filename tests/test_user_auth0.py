@@ -4,16 +4,19 @@ import json
 import unittest.mock as mock
 from app.db.models import User
 
+@pytest.mark.auth0
 @pytest.mark.skip(reason="Auth0 fields not available in test environment")
 def test_user_with_auth0_fields(test_db):
     """Test creating a user with Auth0-specific fields."""
     pass
 
+@pytest.mark.auth0
 @pytest.mark.skip(reason="Auth0 fields not available in test environment")
 def test_user_auth0_metadata_methods(test_db, sample_auth0_user):
     """Test Auth0 metadata getter and setter methods."""
     pass
 
+@pytest.mark.auth0
 def test_user_with_auth0_fields_mock():
     """Test creating a user with Auth0-specific fields using mocks."""
     with mock.patch('app.db.models.User.create') as mock_create:
@@ -55,6 +58,7 @@ def test_user_with_auth0_fields_mock():
         user.set_auth0_metadata({"updated": True})
         assert user.get_auth0_metadata() == {"updated": True}
 
+@pytest.mark.auth0
 def test_user_auth0_metadata_methods_mock():
     """Test Auth0 metadata getter and setter methods using mocks."""
     mock_user = mock.MagicMock()

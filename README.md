@@ -1,17 +1,69 @@
-# AgenticTrust API - OAuth 2.1 Implementation
+# AgenticTrust API - Secure Authorization for AI Agents
 
-This project implements a secure OAuth 2.1 authentication and authorization system for LLM-based agents.
+AgenticTrust is a secure authorization framework designed for AI agent ecosystems. It enables safe and controlled interactions between agents and tools by implementing robust authentication, authorization, and policy enforcement mechanisms.
 
-## Features
+## Current State
+
+AgenticTrust currently provides:
 
 - **OAuth 2.1 compliance** with mandatory PKCE for all flows
 - **Authorization Code Flow** with PKCE for web and mobile apps
 - **Client Credentials Flow** with PKCE for machine-to-machine authentication
 - **Refresh Token** support with PKCE verification
 - **Dynamic Client Registration** support
-- **Authorization Server Metadata** endpoint
 - **Task-aware tokens** with parent-child lineage verification
 - **Scope inheritance** from parent to child tasks
+- **OIDC-A claims** for agent identity and capabilities
+- **Policy-based authorization** using Open Policy Agent (OPA)
+- **Comprehensive audit logging** for all token operations
+
+The framework is designed to ensure that AI agents operate within well-defined boundaries, with fine-grained access control for tools and resources through policy-based authorization.
+
+## Planned Auth0 Integration
+
+We are working to make AgenticTrust compatible with Auth0 for agents, implementing features such as:
+
+1. **Human User Model and Authentication**
+   - Create user model with authentication fields
+   - Implement user registration and login endpoints
+   - Add user profile management
+
+2. **User-Agent Authorization Model**
+   - Create relationship model between users and agents
+   - Implement endpoints to manage user-agent authorizations
+   - Add UI components for authorization management
+
+3. **Human-to-Agent Token Delegation**
+   - Implement token delegation from human users to agents
+   - Create delegation verification mechanisms
+   - Add delegation-specific claims to tokens
+
+4. **Policy-Based Authorization for Delegated Tokens**
+   - Create human delegation policies in OPA
+   - Implement policy checks for delegation
+   - Add policy enforcement for resource access
+
+5. **Enhanced Audit Logging for Delegation**
+   - Add delegation-specific audit events
+   - Implement user activity tracking
+   - Create delegation chain visualization
+
+6. **Role-Based Access Control for Agents**
+   - Implement RBAC for agent-specific roles
+   - Add permission checks to resource access
+   - Create role management UI
+
+7. **Multi-Factor Authentication for Critical Operations**
+   - Implement MFA for human users
+   - Add MFA verification for critical agent operations
+   - Create MFA policy configuration
+
+8. **Documentation and SDK Updates**
+   - Update API documentation
+   - Create delegation examples
+   - Update SDK with delegation support
+
+For detailed information on the Auth0 integration plan, see [AUTH0_INTEGRATION.md](AUTH0_INTEGRATION.md).
 
 ## Authentication Flows
 
@@ -121,112 +173,74 @@ GET /.well-known/oauth-authorization-server
 
 ## Project Structure
 
-- `app/`: Flask application (OAuth server)
-  - `models/`: Database models
-  - `routes/`: API routes
-  - `utils/`: Utility functions
-    - `logger.py`: Centralized logging configuration
-- `sdk/`: Python SDK for agents
-  - `agentictrust/`: SDK package
-  - `examples/`: Example usage with CrewAI
+- `agentictrust/`: Core framework code
+  - `routers/`: API routes
+    - `oauth.py`: OAuth endpoint implementations
+    - `agents.py`: Agent management endpoints
+    - `tools.py`: Tool management endpoints
+  - `core/`: Core business logic
+    - `oauth/`: OAuth implementation
+      - `engine.py`: OAuth business logic
+      - `token_handler.py`: Token lifecycle management
+  - `db/`: Database models
+    - `models/`: Data models
+      - `token.py`: Token model with OIDC-A claims
+      - `agent.py`: Agent model
+      - `audit/`: Audit logging models
+  - `schemas/`: Pydantic models for validation
+    - `oauth.py`: OAuth request/response schemas
+    - `agents.py`: Agent schemas
+    - `tools.py`: Tool schemas
+- `demo/`: Demonstration application
+  - `app/`: FastAPI application
+    - `agent.py`: LLM integration
+    - `main.py`: FastAPI application entry point
+  - `policies/`: Authorization policies in Rego
+    - `authorization.rego`: Base authorization policies
+    - `tickets_read.rego`: Policies for ticket read access
+    - `tickets_write.rego`: Policies for ticket write access
+  - `static/`: Client-side assets
+  - `templates/`: HTML templates
+- `platform/`: Administrative UI (Next.js)
+  - `src/`: Source code
+    - `app/dashboard/`: Dashboard pages
+    - `components/dashboard/`: Dashboard components
 - `docs/`: Documentation
-- `tests/`: Tests for both app and SDK
-- `logs/`: Application logs (created at runtime)
+  - `api/`: API documentation
+    - `oauth.md`: OAuth API documentation
+    - `agents.md`: Agent API documentation
+    - `tools.md`: Tool API documentation
+- `Makefile`: Development environment orchestration
 
 ## Installation
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/agentictrust.git
+   git clone https://github.com/lab101-ai/agentictrust.git
    cd agentictrust
    ```
 
 2. Using Poetry (recommended):
    ```
-   ./scripts/setup-poetry.sh
+   poetry install
    poetry shell
    ```
 
-3. Using venv (alternative):
+3. Using pip (alternative):
    ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
    pip install -r requirements.txt
    ```
 
-## Running the OAuth Server
+## Running the Server
 
-Using Poetry:
+Using the Makefile (recommended):
 ```
-poetry run python run.py
-```
-
-Using venv:
-```
-python run.py
+make server
 ```
 
-The server will be available at http://localhost:5000.
-
-## Logging
-
-This application uses Loguru for structured logging with the following features:
-
-- Console logging with colored output
-- File logging with rotation (logs/app.log)
-- Dedicated error logs (logs/error.log)
-- Specialized OAuth operation logs (logs/oauth.log)
-- Agent action logs (logs/agent_actions.log)
-
-Log levels can be configured via the LOG_LEVEL environment variable (default: INFO).
-
-## Using the SDK
-
-Here's a simple example of using the SDK:
-
-```python
-from sdk.agentictrust import AgenticTrustClient
-
-# Initialize client
-client = AgenticTrustClient(base_url="http://localhost:5000")
-
-# Register an agent
-response = client.agent.register(
-    agent_name="ExampleAgent",
-    description="An example agent",
-    allowed_tools=["web_search", "document_retrieval"],
-    allowed_resources=["search_engine", "document_store"]
-)
-
-# Store credentials
-client_id = response["credentials"]["client_id"]
-client_secret = response["credentials"]["client_secret"]
-registration_token = response["credentials"]["registration_token"]
-
-# Activate the agent
-client.agent.activate(registration_token)
-
-# Request a token for a task
-token_response = client.token.request(
-    client_id=client_id,
-    client_secret=client_secret,
-    scope=["read:web", "execute:task"],
-    task_description="Search for information about OAuth",
-    required_tools=["web_search"],
-    required_resources=["search_engine"]
-)
-
-# Use the token to access a protected resource
-result = client.token.call_protected_endpoint()
-print(result)
-
-# Revoke the token when done
-client.token.revoke(reason="Task completed")
-```
-
-## CrewAI Integration Example
-
-For a complete example of integration with CrewAI, see the example in `sdk/examples/crewai_example.py`.
+This will start:
+- OPA server on port 8181
+- AgenticTrust server on port 8000
 
 ## API Endpoints
 
@@ -242,21 +256,33 @@ For a complete example of integration with CrewAI, see the example in `sdk/examp
 - `POST /api/oauth/verify`: Verify a token
 - `POST /api/oauth/introspect`: Introspect a token
 - `POST /api/oauth/revoke`: Revoke a token
-- `GET /api/oauth/protected`: Example protected endpoint
+- `GET /api/oauth/authorize`: Authorization endpoint
 
-### Admin
-- `GET /api/admin/tokens`: List all tokens
-- `GET /api/admin/tokens/<token_id>`: Get token details
-- `POST /api/admin/tokens/<token_id>/revoke`: Revoke a token
-- `GET /api/admin/tokens/search`: Search tokens
-- `GET /api/admin/audit/logs`: List audit logs
-- `GET /api/admin/audit/task/<task_id>`: Get task history
-- `GET /api/admin/audit/task-chain/<task_id>`: Get task chain
+### Tools
+- `POST /api/tools/register`: Register a new tool
+- `GET /api/tools/list`: List all registered tools
+- `GET /api/tools/<tool_id>`: Get tool details
+- `DELETE /api/tools/<tool_id>`: Delete a tool
 
-## License
+For detailed API documentation, see the `/docs/api/` directory.
 
-MIT
+## Demo Application
+
+The project includes a customer support demo application that showcases how the framework can be used to build a secure AI-powered application with proper access controls.
+
+To run the demo:
+```
+cd demo
+pip install -r requirements.txt
+python app/main.py
+```
+
+The demo will be available at http://localhost:8080.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. 
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+MIT    

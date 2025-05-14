@@ -8,6 +8,9 @@ from agentictrust.schemas.oauth import (
     TokenRequestClientCredentials,
     TokenRequestRefreshToken,
     TokenRequestAuthorizationCode,
+    DelegationTokenRequest,
+    DelegationTokenResponse,
+    DelegationType,
 )
 # Use centralised OAuth engine
 from agentictrust.core.registry import get_oauth_engine
@@ -254,6 +257,24 @@ async def authorize(request: Request) -> Any:
     # Auto-approved: perform redirect
     redirect_url = resp.get("redirect_url")
     return RedirectResponse(url=redirect_url)
+
+@router.post("/delegate", response_model=DelegationTokenResponse)
+async def delegate_token(request: DelegationTokenRequest):
+    """Issue a delegated token from a human user or agent to an agent."""
+    try:
+        if request.delegation_type == DelegationType.HUMAN_TO_AGENT:
+            response = await engine.process_human_delegation(request)
+        elif request.delegation_type == DelegationType.AGENT_TO_AGENT:
+            raise HTTPException(status_code=400, detail="Agent-to-agent delegation not yet implemented")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid delegation type")
+        
+        return DelegationTokenResponse(**response)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing delegation request: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/authorize")
 async def authorize_endpoint(

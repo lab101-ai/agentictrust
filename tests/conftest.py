@@ -18,7 +18,11 @@ from app.core.users.engine import UserEngine
 from app.core.agents.engine import AgentEngine
 from app.core.tools.engine import ToolEngine
 from app.core.scope.engine import ScopeEngine
-from app.core.policy.engine import PolicyEngine
+class PolicyEngine:
+    """Mock PolicyEngine for testing."""
+    @staticmethod
+    def get_instance():
+        return PolicyEngine()
 from app.core.oauth.engine import OAuthEngine
 
 @pytest.fixture(scope="session")

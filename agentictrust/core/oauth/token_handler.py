@@ -30,11 +30,45 @@ from agentictrust.core.oauth.utils import verify_token
 from agentictrust.config import Config
 from agentictrust.schemas.oauth import TokenRequestClientCredentials, LaunchReason
 from agentictrust.utils.logger import logger
+from agentictrust.core.policy.opa_client import opa_client
+from agentictrust.db.models.user_agent_authorization import UserAgentAuthorization
 
 class TokenHandler:
     """Handles token issuance, refresh, introspection, and revocation."""
     def __init__(self):
         pass
+        
+    def check_delegation_policy(self, delegation_type, user_id, agent_id, requested_scopes, resource=None):
+        """Check if delegation is allowed by policy."""
+        try:
+            auth = UserAgentAuthorization.query.filter_by(
+                user_id=user_id,
+                agent_id=agent_id,
+                is_active=True
+            ).first()
+            
+            if not auth:
+                logger.error(f"No active authorization found for user {user_id} and agent {agent_id}")
+                return False
+            
+            input_data = {
+                "delegation_type": delegation_type,
+                "authorization": auth.to_dict(),
+                "requested_scopes": requested_scopes,
+                "resource": resource
+            }
+            
+            allowed = opa_client.query_bool_sync("data.agentictrust.delegation.allow", input_data)
+            
+            if allowed:
+                logger.debug(f"Delegation allowed by policy for user {user_id} to agent {agent_id}")
+            else:
+                logger.warning(f"Delegation denied by policy for user {user_id} to agent {agent_id}")
+            
+            return allowed
+        except Exception as e:
+            logger.error(f"Error checking delegation policy: {str(e)}")
+            return False
 
     def exchange_code_for_token(
         self,

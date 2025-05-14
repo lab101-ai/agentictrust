@@ -6,6 +6,12 @@ import json
 import unittest.mock as mock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+sys.modules['app'] = __import__('agentictrust')
+sys.modules['app.db'] = __import__('agentictrust.db', fromlist=[''])
+sys.modules['app.db.models'] = __import__('agentictrust.db.models', fromlist=[''])
+sys.modules['app.core'] = __import__('agentictrust.core', fromlist=[''])
+
 from app.db import Base, db_session
 from app.db.models import User, Agent, Tool, Scope, Policy
 from app.core.users.engine import UserEngine
@@ -14,11 +20,6 @@ from app.core.tools.engine import ToolEngine
 from app.core.scope.engine import ScopeEngine
 from app.core.policy.engine import PolicyEngine
 from app.core.oauth.engine import OAuthEngine
-
-sys.modules['app'] = __import__('agentictrust')
-sys.modules['app.db'] = __import__('agentictrust.db', fromlist=[''])
-sys.modules['app.db.models'] = __import__('agentictrust.db.models', fromlist=[''])
-sys.modules['app.core'] = __import__('agentictrust.core', fromlist=[''])
 
 @pytest.fixture(scope="session")
 def test_db():

@@ -5,3 +5,5 @@ sqlmodel
 passlib[bcrypt]
 python-jose[cryptography]
 Jinja2
+requests
+openai

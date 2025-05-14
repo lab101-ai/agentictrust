@@ -43,10 +43,7 @@ async def read_root(request: Request):
         "index.html",
         {
             "request": request,
-            "oauth_url": os.getenv("OAUTH_URL", ""),
-            "client_id": os.getenv("CLIENT_ID", ""),
-            "redirect_uri": os.getenv("REDIRECT_URI", ""),
-            "scopes": os.getenv("SCOPES", ""),
+            # No longer need to pass OAuth vars - using window.location.origin in template
         }
     )
 
@@ -130,7 +127,7 @@ def read_tickets(
     ]
 
 # Get all public tickets
-@app.get("/public_tickets", response_model=list[TicketRead])
+@app.get("/api/public_tickets", response_model=list[TicketRead])
 def read_public_tickets(session: Session = Depends(get_session)):
     tickets_query = (
         select(Ticket)

@@ -5,8 +5,8 @@ from passlib.context import CryptContext
 from .database import engine, init_db, get_session
 from .models import User, UserProfile, Ticket, Company
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing context - use sha256_crypt to avoid bcrypt compatibility issues
+pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 DEFAULT_PASSWORD = "password123" # Changed for consistency with frontend dropdown login
 
@@ -30,13 +30,10 @@ USER_PROFILES_DATA = [
 ]
 
 TICKET_DATA = [
-    # User 1 (cmeyer@cisco.com)
     {"title": 'Project Alpha Kickoff', "description": 'Agenda and milestones for Project Alpha.', "public": True, "status": "Open"},
     {"title": 'Q3 Budget Review', "description": 'Review finance reports for Q3.', "public": False, "status": "In Progress"},
-    # User 2 (epatel@cisco.com)
     {"title": 'Client Meeting Prep - Cisco', "description": 'Prepare presentation for upcoming client meeting.', "public": True, "status": "Open"},
     {"title": 'Performance Review Notes', "description": 'Notes for team performance reviews.', "public": False, "status": "Closed"},
-    # User 3 (gkim@cisco.com) - Assuming 2 tickets per user for round-robin
     {"title": 'New Lead Follow-up', "description": 'Follow up with leads from last week\'s conference.', "public": False, "status": "Open"},
     {"title": 'Sales Target Analysis', "description": 'Analyze Q3 sales targets vs actuals.', "public": True, "status": "In Progress"},
 ]

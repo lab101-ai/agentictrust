@@ -2,19 +2,24 @@ from fastapi import APIRouter, HTTPException, Body
 from typing import Dict, List, Any, Optional
 from agentictrust.core import get_agent_engine
 from agentictrust.core.policy.opa_client import opa_client
+from agentictrust.schemas.agents import RegisterAgentRequest, ActivateAgentRequest, UpdateAgentRequest
 
 # Create router with prefix and tags
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 engine = get_agent_engine()
 
 @router.post("/register", status_code=201)
-async def register_agent(data: dict = Body(...)) -> Dict[str, Any]:
+async def register_agent(data: RegisterAgentRequest) -> Dict[str, Any]:
     try:
         result = engine.register_agent(
-            agent_name=data.get('agent_name'),
-            description=data.get('description'),
-            max_scope_level=data.get('max_scope_level', 'restricted'),
-            tool_ids=data.get('tool_ids', [])
+            agent_name=data.agent_name,
+            description=data.description,
+            max_scope_level=data.max_scope_level,
+            tool_ids=data.tool_ids,
+            agent_type=data.agent_type,
+            agent_model=data.agent_model,
+            agent_version=data.agent_version,
+            agent_provider=data.agent_provider,
         )
         # Add OPA sync for new agent
         agent = result.get('agent')
@@ -30,9 +35,9 @@ async def register_agent(data: dict = Body(...)) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail="Failed to register agent")
 
 @router.post("/activate")
-async def activate_agent(data: dict = Body(...)) -> Dict[str, Any]:
+async def activate_agent(data: ActivateAgentRequest) -> Dict[str, Any]:
     try:
-        result = engine.activate_agent(data.get('registration_token'))
+        result = engine.activate_agent(data.registration_token)
         return {'message': 'Agent activated successfully', **result}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -110,9 +115,9 @@ async def remove_tool_from_agent(client_id: str, tool_id: str) -> Dict[str, Any]
         raise HTTPException(status_code=500, detail="Failed to remove tool from agent")
 
 @router.put("/{client_id}")
-async def update_agent(client_id: str, data: dict = Body(...)) -> Dict[str, Any]:
+async def update_agent(client_id: str, data: UpdateAgentRequest) -> Dict[str, Any]:
     try:
-        result = engine.update_agent(client_id, data)
+        result = engine.update_agent(client_id, data.model_dump(exclude_unset=True))
         # Add OPA sync for updated agent
         agent = result.get('agent')
         if agent:

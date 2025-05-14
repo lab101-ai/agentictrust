@@ -112,11 +112,19 @@
     </div>
 
     <script>
-        const OAUTH_URL = "{{ oauth_url }}";
-        const CLIENT_ID = "{{ client_id }}";
-        const REDIRECT_URI = "{{ redirect_uri }}";
-        const SCOPES = "{{ scopes }}";
+        // Use window.location.origin to ensure OAuth calls go to the demo server
+        // By default use the same server that served this page
+        const OAUTH_URL = window.location.origin;
+        // Legacy variables - no longer used but kept for compatibility
+        const CLIENT_ID = "";
+        const REDIRECT_URI = "";
+        const SCOPES = "";
+        
+        // Prevent OAuth redirect by checking and clearing URL params
+        if (window.location.search.includes('code_challenge')) {
+            window.location.href = window.location.origin;
+        }
     </script>
-    <script src="/static/script.js"></script>
+    <script src="/static/script.js?v=20250512"></script>
 </body>
 </html>

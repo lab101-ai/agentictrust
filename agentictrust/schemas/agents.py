@@ -6,6 +6,10 @@ class RegisterAgentRequest(BaseModel):
     description: Optional[str] = None
     max_scope_level: Optional[str] = 'restricted'
     tool_ids: Optional[List[str]] = []
+    agent_type: Optional[str] = None
+    agent_model: Optional[str] = None
+    agent_version: Optional[str] = None
+    agent_provider: Optional[str] = None
 
 class ActivateAgentRequest(BaseModel):
     registration_token: str
@@ -15,3 +19,7 @@ class UpdateAgentRequest(BaseModel):
     description: Optional[str] = None
     max_scope_level: Optional[str] = None
     tool_ids: Optional[List[str]] = None
+    agent_type: Optional[str] = None
+    agent_model: Optional[str] = None
+    agent_version: Optional[str] = None
+    agent_provider: Optional[str] = None

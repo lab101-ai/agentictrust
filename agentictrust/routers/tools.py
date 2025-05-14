@@ -1,21 +1,22 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Body
 from typing import Any, Dict, Optional
 from agentictrust.core import get_tool_engine
 from agentictrust.core.policy.opa_client import opa_client
+from agentictrust.schemas.tools import CreateToolRequest, UpdateToolRequest
 
 # Create router with prefix and tags
 router = APIRouter(prefix="/api/tools", tags=["tools"])
 engine = get_tool_engine()
 
 @router.post("", status_code=201)
-async def create_tool(data: dict) -> Dict[str, Any]:
+async def create_tool(data: CreateToolRequest = Body(...)) -> Dict[str, Any]:
     try:
         tool = engine.create_tool_record(
-            name=data.get('name'),
-            description=data.get('description'),
-            category=data.get('category'),
-            permissions_required=data.get('permissions_required', []),
-            parameters=data.get('input_schema', {})
+            name=data.name,
+            description=data.description,
+            category=data.category,
+            permissions_required=data.permissions_required,
+            parameters=data.input_schema
         )
         tool_obj = engine.get_tool(tool.tool_id)
         # Add OPA sync for new tool
@@ -50,9 +51,13 @@ async def get_tool(tool_id: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail='Failed to get tool')
 
 @router.put("/{tool_id}")
-async def update_tool(tool_id: str, data: dict) -> Dict[str, Any]:
+async def update_tool(tool_id: str, data: UpdateToolRequest = Body(...)) -> Dict[str, Any]:
     try:
-        updated = engine.update_tool(tool_id, data)
+        payload = data.dict(exclude_unset=True)
+        # map request field to engine alias
+        if 'input_schema' in payload:
+            payload['inputSchema'] = payload.pop('input_schema')
+        updated = engine.update_tool(tool_id, payload)
         # Add OPA sync for updated tool
         try:
             opa_client.put_data(f"runtime/tools/{tool_id}", updated)

@@ -35,69 +35,50 @@ const userStatsContent = document.getElementById('user-stats-content');
 
 let authToken = null;
 
-// PKCE helper functions
-function generateCodeVerifier() {
-    const array = new Uint8Array(56);
-    window.crypto.getRandomValues(array);
-    return Array.from(array, b => ('0' + b.toString(16)).slice(-2)).join('');
-}
-async function generateCodeChallenge(codeVerifier) {
-    const data = new TextEncoder().encode(codeVerifier);
-    const digest = await window.crypto.subtle.digest('SHA-256', data);
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(digest)))
-        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    return base64;
-}
+// ---------------------------------------------------------------------------
+// Simplified login – skip PKCE & /authorize. Fetch token directly.
+// ---------------------------------------------------------------------------
+const API_BASE = OAUTH_URL || window.location.origin; // fall back to demo origin
 
-// --- Authentication --- //
 loginBtn.addEventListener('click', async () => {
-    const codeVerifier = generateCodeVerifier();
-    localStorage.setItem('pkce_code_verifier', codeVerifier);
-    const codeChallenge = await generateCodeChallenge(codeVerifier);
-    const state = Math.random().toString(36).substring(2);
-    localStorage.setItem('pkce_state', state);
-    const authUrl = `${OAUTH_URL}/api/oauth/authorize?response_type=code` +
-        `&client_id=${encodeURIComponent(CLIENT_ID)}` +
-        `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-        `&scope=${encodeURIComponent(SCOPES)}` +
-        `&state=${encodeURIComponent(state)}` +
-        `&code_challenge=${encodeURIComponent(codeChallenge)}` +
-        `&code_challenge_method=S256`;
-    window.location.href = authUrl;
-});
+    const selectedUser = userSelectDropdown.value;
+    if (!selectedUser) {
+        alert('Please select a user');
+        return;
+    }
 
-async function handleOAuthCallback() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has('code')) {
-        const code = params.get('code');
-        const state = params.get('state');
-        const expected = localStorage.getItem('pkce_state');
-        if (state !== expected) {
-            console.error('Invalid OAuth state');
+    try {
+        const body = new URLSearchParams({
+            username: selectedUser,
+            password: 'password123', // default password seeded in database
+        });
+
+        const resp = await fetch(`${API_BASE}/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body,
+        });
+
+        if (!resp.ok) {
+            alert('Login failed');
             return;
         }
-        const verifier = localStorage.getItem('pkce_code_verifier');
-        try {
-            const resp = await fetch(`${OAUTH_URL}/api/oauth/token`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    grant_type: 'authorization_code',
-                    code: code,
-                    client_id: CLIENT_ID,
-                    redirect_uri: REDIRECT_URI,
-                    code_verifier: verifier
-                })
-            });
-            const data = await resp.json();
-            authToken = data.access_token;
-            localStorage.setItem('authToken', authToken);
-        } catch (e) {
-            console.error('Token exchange failed', e);
-        }
-        window.history.replaceState({}, document.title, window.location.pathname);
+
+        const data = await resp.json();
+        authToken = data.access_token;
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('username', selectedUser);
+        updateUIVisibility(true);
+        fetchTickets();
+        fetchAndDisplayUserStats();
+    } catch (err) {
+        console.error('Login error', err);
+        alert('Login error');
     }
-}
+});
+
+// No OAuth callback handling needed in simplified flow
+function handleOAuthCallback() {/* noop */}
 
 logoutBtn.addEventListener('click', () => {
     authToken = null;
@@ -158,7 +139,7 @@ async function fetchTickets() { // User-specific tickets
     if (!authToken) return;
 
     try {
-        const response = await fetch(`${OAUTH_URL}/api/tickets`, {
+        const response = await fetch(`${OAUTH_URL}/tickets`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         if (response.ok) {
@@ -412,21 +393,23 @@ async function fetchAndPopulateUsers() {
 }
 
 async function init() {
-    await handleOAuthCallback();
+    // Get token from local storage (if available)
     authToken = localStorage.getItem('authToken');
-    fetchPublicTickets(); // Always fetch public tickets on load
-    fetchAndPopulateUsers(); // Fetch and populate users for the dropdown
-
+    
+    // Always load these regardless of auth state
+    fetchAndPopulateUsers();
+    fetchAndDisplayOverallStats();
+    fetchAndDisplayCompanyStats();
+    fetchPublicTickets();
+    
+    // If we have a token, fetch user-specific content
     if (authToken) {
         updateUIVisibility(true);
-        fetchTickets(); // Fetch user-specific tickets if logged in
-        // Role should already be set by login logic if authToken exists
-        fetchAndDisplayUserStats(); // Fetch user-specific stats
+        fetchTickets();
+        fetchAndDisplayUserStats();
     } else {
         updateUIVisibility(false);
     }
-    fetchAndDisplayOverallStats(); // Fetch overall stats
-    fetchAndDisplayCompanyStats(); // Fetch company stats
 }
 
 function updateUIVisibility(isLoggedIn) {

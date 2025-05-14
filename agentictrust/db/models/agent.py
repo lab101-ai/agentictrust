@@ -287,6 +287,23 @@ class Agent(Base):
             self.max_scope_level = data['max_scope_level']
             properties_updated.append(f"max_scope_level: '{old_level}' -> '{data['max_scope_level']}'")
             
+        if 'agent_type' in data:
+            old = self.agent_type
+            self.agent_type = data['agent_type']
+            properties_updated.append(f"agent_type: '{old}' -> '{data['agent_type']}'")
+        if 'agent_model' in data:
+            old = self.agent_model
+            self.agent_model = data['agent_model']
+            properties_updated.append(f"agent_model: '{old}' -> '{data['agent_model']}'")
+        if 'agent_version' in data:
+            old = self.agent_version
+            self.agent_version = data['agent_version']
+            properties_updated.append(f"agent_version: '{old}' -> '{data['agent_version']}'")
+        if 'agent_provider' in data:
+            old = self.agent_provider
+            self.agent_provider = data['agent_provider']
+            properties_updated.append(f"agent_provider: '{old}' -> '{data['agent_provider']}'")
+            
         if not properties_updated:
             logger.warning(f"No properties updated for agent {self.client_id} - data contained no valid fields")
             return self

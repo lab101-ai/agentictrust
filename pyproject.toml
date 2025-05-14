@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Secure OAuth Framework for LLM-Based Agents"
 authors = ["Subramanya N <subramanyanagabhushan@gmail.com>"]
 readme = "README.md"
-packages = [{include = "app"}, {include = "demo"}]
+packages = [{include = "agentictrust"}, {include = "demo"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -39,7 +39,3 @@ target-version = ["py310"]
 [tool.isort]
 profile = "black"
 line_length = 88
-
-[tool.poetry.scripts]
-cisco-ui = "demo.ui.cisco_app:main"
-workspan-ui = "demo.ui.workspan_app:main"

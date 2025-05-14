@@ -16,7 +16,11 @@ class AgentEngine:
         agent_name: str,
         description: Optional[str] = None,
         max_scope_level: str = 'restricted',
-        tool_ids: List[str] = []
+        tool_ids: List[str] = [],
+        agent_type: Optional[str] = None,
+        agent_model: Optional[str] = None,
+        agent_version: Optional[str] = None,
+        agent_provider: Optional[str] = None
     ) -> Dict[str, Any]:
         """Create a new agent, associate tools, log audit, and return agent dict with credentials"""
         if not agent_name:
@@ -24,7 +28,11 @@ class AgentEngine:
         agent, client_secret = Agent.create(
             agent_name=agent_name,
             description=description,
-            max_scope_level=max_scope_level
+            max_scope_level=max_scope_level,
+            agent_type=agent_type,
+            agent_model=agent_model,
+            agent_version=agent_version,
+            agent_provider=agent_provider
         )
         for tid in tool_ids or []:
             try:
@@ -94,7 +102,10 @@ class AgentEngine:
         agent = Agent.get_by_id(client_id)
         
         # Update basic properties using the agent's method
-        properties_data = {k: v for k, v in data.items() if k in ['agent_name', 'description', 'max_scope_level']}
+        properties_data = {k: v for k, v in data.items() if k in [
+            'agent_name', 'description', 'max_scope_level',
+            'agent_type', 'agent_model', 'agent_version', 'agent_provider'
+        ]}
         if properties_data:
             agent.update_properties(properties_data)
             

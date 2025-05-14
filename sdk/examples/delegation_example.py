@@ -4,7 +4,9 @@ Example of human-to-agent delegation in AgenticTrust.
 import os
 import sys
 import requests
-from agentictrust.client import AgenticTrustClient
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+from sdk.agentictrust.client import AgenticTrustClient
 
 client = AgenticTrustClient(base_url="http://localhost:8000")
 

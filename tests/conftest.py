@@ -13,7 +13,7 @@ sys.modules['app.db.models'] = __import__('agentictrust.db.models', fromlist=[''
 sys.modules['app.core'] = __import__('agentictrust.core', fromlist=[''])
 
 from app.db import Base, db_session
-from app.db.models import User, Agent, Tool, Scope, Policy
+from app.db.models import User, Agent, Tool, Scope
 from app.core.users.engine import UserEngine
 from app.core.agents.engine import AgentEngine
 from app.core.tools.engine import ToolEngine
@@ -81,15 +81,17 @@ def sample_scope(test_db):
 
 @pytest.fixture
 def sample_policy(test_db):
-    """Create a sample policy for testing."""
-    policy = Policy.create(
-        name="test_policy", 
-        description="Test policy",
-        conditions={"environment": {"type": "test"}}
-    )
+    """Create a mock policy for testing."""
+    # Create a mock policy object with necessary attributes
+    class MockPolicy:
+        def __init__(self):
+            self.policy_id = "mock-policy-id"
+            self.name = "test_policy"
+            self.description = "Test policy"
+            self.conditions = {"environment": {"type": "test"}}
+    
+    policy = MockPolicy()
     yield policy
-    test_db.delete(policy)
-    test_db.commit()
 
 @pytest.fixture
 def sample_user(test_db, sample_scope, sample_policy, user_engine):

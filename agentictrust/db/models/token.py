@@ -706,3 +706,35 @@ class IssuedToken(Base):
     def verify(self, source_ip=None) -> bool:
         """Verify if token is still valid, alias of is_valid."""
         return self.is_valid()
+        
+    @classmethod
+    def delete_by_id(cls, token_id):
+        """Delete a token by its ID.
+        
+        Parameters
+        ----------
+        token_id : str
+            The ID of the token to delete.
+            
+        Returns
+        -------
+        bool
+            True if the token was deleted, False otherwise.
+        """
+        try:
+            token = cls.query.filter_by(token_id=token_id).first()
+            if token:
+                db_session.delete(token)
+                db_session.commit()
+                logger.info(f"Token {token_id} deleted successfully")
+                return True
+            else:
+                logger.warning(f"Token {token_id} not found for deletion")
+                return False
+        except SQLAlchemyError as e:
+            db_session.rollback()
+            logger.error(f"Database error deleting token {token_id}: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error deleting token {token_id}: {str(e)}")
+            return False

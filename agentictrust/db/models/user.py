@@ -32,9 +32,9 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     # Arbitrary user metadata (e.g., partner affiliation)
     attributes = Column(JSON, nullable=True)
-
+    
     scopes = relationship('Scope', secondary=user_scopes, backref='users')
-
+    
     @classmethod
     def create(cls, username, email, full_name=None, hashed_password=None, is_external=False, department=None, job_title=None, level=None, attributes=None, scope_ids=None):
         """Create a new user."""

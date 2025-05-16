@@ -1,6 +1,6 @@
 """End-to-end tests for tool management."""
 import pytest
-from app.db.models import Tool
+from agentictrust.db.models import Tool
 
 def test_create_tool(test_db, tool_engine, sample_scope):
     """Test creating a new tool."""

@@ -1,16 +1,18 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 class CreateUserRequest(BaseModel):
     username: str
     email: str
     full_name: Optional[str] = None
-    hashed_password: str
+    hashed_password: Optional[str] = None
     is_external: Optional[bool] = False
     department: Optional[str] = None
     job_title: Optional[str] = None
     level: Optional[str] = None
     scopes: Optional[List[str]] = []
+    social_provider: Optional[str] = None
+    social_provider_id: Optional[str] = None
 
 class UpdateUserRequest(BaseModel):
     username: Optional[str] = None
@@ -22,3 +24,24 @@ class UpdateUserRequest(BaseModel):
     job_title: Optional[str] = None
     level: Optional[str] = None
     scopes: Optional[List[str]] = None
+    social_provider: Optional[str] = None
+    social_provider_id: Optional[str] = None
+    last_login: Optional[str] = None
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    expires_in: int
+    refresh_token: Optional[str] = None
+    id_token: Optional[str] = None
+
+class UserProfile(BaseModel):
+    user_id: str
+    username: str
+    email: str
+    full_name: Optional[str] = None
+    department: Optional[str] = None
+    job_title: Optional[str] = None
+    is_external: bool
+    scopes: List[str]
+    picture: Optional[str] = None

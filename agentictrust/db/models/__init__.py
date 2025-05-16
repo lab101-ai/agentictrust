@@ -14,6 +14,10 @@ from agentictrust.db.models.audit.token_audit import TokenAuditLog
 from agentictrust.db.models.audit.agent_audit import AgentAuditLog
 from agentictrust.db.models.delegation_grant import DelegationGrant
 from agentictrust.db.models.audit.delegation_audit import DelegationAuditLog
+from agentictrust.db.models.policy import Policy
+from agentictrust.db.models.role import Role
+from agentictrust.db.models.permission import Permission
+from agentictrust.db.models.user_agent_authorization import UserAgentAuthorization
 
 # Add event listeners for token-audit log relationship handling
 from sqlalchemy import event
@@ -46,5 +50,9 @@ __all__ = [
     'TokenAuditLog',
     'AgentAuditLog',
     'DelegationGrant',
-    'DelegationAuditLog'
+    'DelegationAuditLog',
+    'Policy',
+    'Role',
+    'Permission',
+    'UserAgentAuthorization'
 ]

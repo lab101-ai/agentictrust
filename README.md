@@ -19,9 +19,9 @@ AgenticTrust currently provides:
 
 The framework is designed to ensure that AI agents operate within well-defined boundaries, with fine-grained access control for tools and resources through policy-based authorization.
 
-## Planned Auth0 Integration
+## Planned Agent Authorization Features
 
-We are working to make AgenticTrust compatible with Auth0 for agents, implementing features such as:
+We are working to enhance AgenticTrust with advanced authorization capabilities for agents, implementing features such as:
 
 1. **Human User Model and Authentication**
    - Create user model with authentication fields
@@ -58,7 +58,7 @@ We are working to make AgenticTrust compatible with Auth0 for agents, implementi
    - Create delegation examples
    - Update SDK with delegation support
 
-For detailed information on the Auth0 integration plan, see [AUTH0_INTEGRATION.md](AUTH0_INTEGRATION.md).
+For detailed information on the agent authorization plan, see [AGENT_AUTHORIZATION.md](AGENT_AUTHORIZATION.md).
 
 ## Authentication Flows
 
@@ -280,4 +280,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT      
+MIT        

@@ -130,19 +130,8 @@ class AgenticTrustClient:
         
         return response.json()
     
-    def exchange_auth0_token(self, auth0_token: str):
-        """Exchange Auth0 token for AgenticTrust token."""
-        url = f"{self.base_url}/api/users/auth0/token"
-        
-        data = {"auth0_token": auth0_token}
-        
-        response = self.session.post(url, json=data)
-        response.raise_for_status()
-        
-        return response.json()
-    
     def get_user_profile(self, token: str):
-        """Get user profile using Auth0 token."""
+        """Get user profile using token."""
         url = f"{self.base_url}/api/users/profile"
         
         headers = {"Authorization": f"Bearer {token}"}

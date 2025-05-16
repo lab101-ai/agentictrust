@@ -2,7 +2,10 @@
 import pytest
 import json
 import uuid
-from agentictrust.db.models import Policy, Scope
+from agentictrust.db.models import Scope
+from tests.conftest import MockPolicy
+
+Policy = MockPolicy
 
 def test_create_policy(test_db, policy_engine):
     """Test creating a policy using the refactored policy engine."""

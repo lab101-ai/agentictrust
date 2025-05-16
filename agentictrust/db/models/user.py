@@ -1,7 +1,6 @@
 import uuid
-import json
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Boolean, Table, ForeignKey, JSON, Text
+from sqlalchemy import Column, String, DateTime, Boolean, Table, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from agentictrust.db import Base, db_session
 from agentictrust.utils.logger import logger
@@ -34,28 +33,10 @@ class User(Base):
     # Arbitrary user metadata (e.g., partner affiliation)
     attributes = Column(JSON, nullable=True)
     
-    auth0_id = Column(String(100), nullable=True, unique=True)
-    auth0_metadata = Column(Text, nullable=True)  # JSON field to store Auth0 user metadata
-    social_provider = Column(String(50), nullable=True)  # e.g., 'google', 'github'
-    social_provider_id = Column(String(100), nullable=True)
     last_login = Column(DateTime, nullable=True)
     refresh_token = Column(String(512), nullable=True)
 
     scopes = relationship('Scope', secondary=user_scopes, backref='users')
-    
-    def set_auth0_metadata(self, metadata):
-        """Set Auth0 metadata as JSON string."""
-        if metadata and isinstance(metadata, dict):
-            self.auth0_metadata = json.dumps(metadata)
-    
-    def get_auth0_metadata(self):
-        """Get Auth0 metadata as dictionary."""
-        if self.auth0_metadata:
-            try:
-                return json.loads(self.auth0_metadata)
-            except json.JSONDecodeError:
-                logger.error(f"Invalid JSON in auth0_metadata for user {self.user_id}")
-        return {}
     
     @classmethod
     def create(cls, username, email, full_name=None, hashed_password=None, is_external=False, department=None, job_title=None, level=None, attributes=None, scope_ids=None):
@@ -136,10 +117,7 @@ class User(Base):
             'scopes': [scope.scope_id for scope in self.scopes],
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'auth0_id': self.auth0_id,
-            'social_provider': self.social_provider,
-            'last_login': self.last_login.isoformat() if self.last_login else None,
-            'auth0_metadata': self.get_auth0_metadata()
+            'last_login': self.last_login.isoformat() if self.last_login else None
         }
 
     @classmethod

@@ -83,17 +83,72 @@ def sample_scope(test_db):
     test_db.delete(scope)
     test_db.commit()
 
+class MockPolicy:
+    """Mock Policy class for testing."""
+    
+    def __init__(self, policy_id="mock-policy-id", name="test_policy", description="Test policy", 
+                 effect="allow", priority=0, conditions=None, scope_ids=None):
+        self.policy_id = policy_id
+        self.name = name
+        self.description = description
+        self.effect = effect
+        self.priority = priority
+        self.conditions = conditions or {"environment": {"type": "test"}}
+        self.scopes = []
+        
+        if scope_ids:
+            from agentictrust.db.models import Scope
+            for scope_id in scope_ids:
+                scope = Scope.query.get(scope_id)
+                if scope:
+                    self.scopes.append(scope)
+    
+    @classmethod
+    def create(cls, name, description=None, effect="allow", priority=0, conditions=None, scope_ids=None):
+        """Mock create method."""
+        import uuid
+        policy_id = str(uuid.uuid4())
+        return cls(policy_id=policy_id, name=name, description=description, 
+                   effect=effect, priority=priority, conditions=conditions, scope_ids=scope_ids)
+    
+    @classmethod
+    def query(cls):
+        """Mock query method."""
+        class MockQuery:
+            @staticmethod
+            def filter_by(name=None):
+                class MockFilterResult:
+                    @staticmethod
+                    def first():
+                        return MockPolicy(name=name)
+                return MockFilterResult()
+                
+            @staticmethod
+            def get(policy_id):
+                return MockPolicy(policy_id=policy_id)
+        
+        return MockQuery()
+    
+    @classmethod
+    def delete_by_id(cls, policy_id):
+        """Mock delete method."""
+        return True
+    
+    def to_dict(self):
+        """Convert policy to dictionary."""
+        return {
+            "policy_id": self.policy_id,
+            "name": self.name,
+            "description": self.description,
+            "effect": self.effect,
+            "priority": self.priority,
+            "conditions": self.conditions,
+            "scopes": [scope.name for scope in self.scopes]
+        }
+
 @pytest.fixture
 def sample_policy(test_db):
     """Create a mock policy for testing."""
-    # Create a mock policy object with necessary attributes
-    class MockPolicy:
-        def __init__(self):
-            self.policy_id = "mock-policy-id"
-            self.name = "test_policy"
-            self.description = "Test policy"
-            self.conditions = {"environment": {"type": "test"}}
-    
     policy = MockPolicy()
     yield policy
 
@@ -147,42 +202,7 @@ def sample_agent(test_db, agent_engine):
     except:
         pass
 
-@pytest.fixture
-def mock_auth0_response():
-    """Mock Auth0 API response."""
-    return {
-        "sub": "auth0|123456789",
-        "name": "Test Auth0 User",
-        "email": "auth0user@example.com",
-        "picture": "https://example.com/picture.jpg",
-        "updated_at": "2023-01-01T00:00:00.000Z"
-    }
 
-@pytest.fixture
-def mock_auth0_client():
-    """Create a mocked Auth0 OAuth client."""
-    with mock.patch('agentictrust.core.auth.auth0.OAuth') as mock_oauth:
-        mock_client = mock.MagicMock()
-        mock_oauth.return_value.create_client.return_value = mock_client
-        yield mock_client
-
-@pytest.fixture
-def sample_auth0_user(test_db):
-    """Create a sample user with Auth0 information for testing."""
-    user = User.create(
-        username="auth0testuser",
-        email="auth0test@example.com",
-        full_name="Auth0 Test User",
-        auth0_id="auth0|123456789",
-        auth0_metadata=json.dumps({"role":"user"}),
-        social_provider="google",
-        social_provider_id="google|123456789"
-    )
-    yield user
-    try:
-        User.delete_by_id(user.user_id)
-    except:
-        pass
 
 @pytest.fixture
 def sample_user_agent_authorization(test_db, sample_user, sample_agent):

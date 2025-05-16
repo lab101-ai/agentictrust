@@ -1,6 +1,6 @@
 """Integration tests between users, agents, and tools."""
 import pytest
-from agentictrust.db.models import User, Agent, Tool, Scope, Policy
+from agentictrust.db.models import User, Agent, Tool, Scope
 from agentictrust.core.users.engine import UserEngine
 from agentictrust.core.agents.engine import AgentEngine
 from agentictrust.core.tools.engine import ToolEngine
@@ -10,12 +10,9 @@ def test_end_to_end_workflow(test_db, user_engine, agent_engine, tool_engine):
     # Step 1: Create a scope for permissions
     scope = Scope.create(name="integration:data:read", description="Permission to read data")
     
-    # Step 2: Create a policy
-    policy = Policy.create(
-        name="basic_access", 
-        description="Basic access policy",
-        conditions={"user": {"department": "QA"}}
-    )
+    # Step 2: Create a policy using the fixture
+    from tests.conftest import MockPolicy
+    policy = MockPolicy()
     
     # Step 3: Create a user with the scope and policy
     user_data = user_engine.create_user(

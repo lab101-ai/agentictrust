@@ -19,7 +19,6 @@ from datetime import datetime
 from agentictrust.core.oauth.utils import verify_token
 from agentictrust.schemas.oauth import TokenRequestClientCredentials, LaunchReason, DelegationType
 from agentictrust.utils.logger import logger
-from agentictrust.core.auth.auth0 import verify_auth0_token, extract_user_from_claims
 from agentictrust.db.models.user_agent_authorization import UserAgentAuthorization
 from fastapi import HTTPException
 
@@ -295,35 +294,21 @@ class OAuthEngine:
         """Process delegation from human user to agent."""
         try:
             delegator_token = data.delegator_token
-            delegator_claims = None
             user = None
             token_obj = None
             
-            try:
-                delegator_claims = await verify_auth0_token(delegator_token, "auth0_domain")  # Domain should be configured
-                user_data = extract_user_from_claims(delegator_claims)
-                
-                from agentictrust.core.users.engine import UserEngine
-                user_engine = UserEngine()
-                user = user_engine.find_user_by_auth0_id(user_data['auth0_id'])
-                
-                if not user:
-                    logger.error(f"User not found for Auth0 ID: {user_data['auth0_id']}")
-                    raise ValueError("Invalid delegator token: user not found")
-            except Exception as auth0_error:
-                logger.debug(f"Not an Auth0 token: {str(auth0_error)}")
-                token_obj = verify_token(delegator_token)
-                
-                if not token_obj:
-                    logger.error("Invalid delegator token")
-                    raise ValueError("Invalid delegator token")
-                
-                from agentictrust.db.models.user import User
-                user = User.query.filter_by(user_id=token_obj.delegator_sub).first()
-                
-                if not user:
-                    logger.error(f"User not found for token: {token_obj.token_id}")
-                    raise ValueError("Invalid delegator token: user not found")
+            token_obj = verify_token(delegator_token)
+            
+            if not token_obj:
+                logger.error("Invalid delegator token")
+                raise ValueError("Invalid delegator token")
+            
+            from agentictrust.db.models.user import User
+            user = User.query.filter_by(user_id=token_obj.delegator_sub).first()
+            
+            if not user:
+                logger.error(f"User not found for token: {token_obj.token_id}")
+                raise ValueError("Invalid delegator token: user not found")
             
             # Verify user-agent authorization
             agent_id = data.client_id
@@ -354,21 +339,12 @@ class OAuthEngine:
                 logger.error(f"Authorization {valid_auth.authorization_id} has expired")
                 raise ValueError("Authorization has expired")
             
-            delegation_chain = []
-            
-            if delegator_claims:
-                delegation_chain.append({
-                    "type": "auth0",
-                    "sub": user.auth0_id,
-                    "iat": datetime.utcnow().timestamp()
-                })
-            else:
-                delegation_chain.append({
-                    "type": "agentictrust",
-                    "token_id": token_obj.token_id,
-                    "sub": user.user_id,
-                    "iat": datetime.utcnow().timestamp()
-                })
+            delegation_chain = [{
+                "type": "agentictrust",
+                "token_id": token_obj.token_id,
+                "sub": user.user_id,
+                "iat": datetime.utcnow().timestamp()
+            }]
             
             agent = Agent.query.filter_by(client_id=agent_id).first()
             
@@ -431,4 +407,4 @@ class OAuthEngine:
         except Exception as e:
             logger.error(f"Error processing human delegation: {str(e)}")
             db_session.rollback()
-            raise HTTPException(status_code=500, detail=str(e)) 
+            raise HTTPException(status_code=500, detail=str(e))     

@@ -37,7 +37,7 @@ response = requests.post(
     json={
         "client_id": "agent-456",
         "delegation_type": "human_to_agent",
-        "delegator_token": "user-auth0-token",
+        "delegator_token": "user-token",
         "scope": ["read:data"],
         "task_description": "Analyze user data",
         "task_id": "task-789",
@@ -110,20 +110,4 @@ allow if {
     # Check if requested scopes are subset of authorized scopes
     is_scope_subset(input.requested_scopes, input.authorization.scopes)
 }
-```
-
-## Integration with Auth0
-
-AgenticTrust can use Auth0 for human user authentication:
-
-```python
-# Login with Auth0
-response = requests.get("https://api.example.com/login/auth0")
-# User is redirected to Auth0 for authentication
-
-# Exchange Auth0 token for AgenticTrust token
-response = requests.post(
-    "https://api.example.com/auth0/token",
-    json={"auth0_token": "user-auth0-token"}
-)
 ```

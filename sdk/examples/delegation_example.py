@@ -11,14 +11,17 @@ from sdk.agentictrust.client import AgenticTrustClient
 client = AgenticTrustClient(base_url="http://localhost:8000")
 
 def authenticate_user():
-    """Authenticate user with Auth0 and get token."""
-    print("Authenticating user with Auth0...")
-    
-    auth0_token = "simulated-auth0-token"
+    """Authenticate user and get token."""
+    print("Authenticating user...")
     
     response = requests.post(
-        "http://localhost:8000/api/users/auth0/token",
-        json={"auth0_token": auth0_token}
+        "http://localhost:8000/api/oauth/token",
+        json={
+            "grant_type": "client_credentials",
+            "client_id": "user-123",
+            "client_secret": "user-secret",
+            "scope": "read:data write:data"
+        }
     )
     
     user_token = response.json()["access_token"]

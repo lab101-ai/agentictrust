@@ -22,3 +22,33 @@ class UpdateUserRequest(BaseModel):
     job_title: Optional[str] = None
     level: Optional[str] = None
     scopes: Optional[List[str]] = None
+
+# -------------------------------
+# Auth / Password reset schemas
+# -------------------------------
+
+class LoginRequest(BaseModel):
+    """Request body for user login."""
+
+    username_or_email: str
+    password: str
+
+class LoginResponse(BaseModel):
+    """Successful login response."""
+
+    access_token: str
+    token_type: str
+    user: dict
+
+class PasswordResetStartRequest(BaseModel):
+    email: str
+
+class PasswordResetStartResponse(BaseModel):
+    reset_token: str
+
+class PasswordResetConfirmRequest(BaseModel):
+    token: str
+    new_password: str
+
+class PasswordResetConfirmResponse(BaseModel):
+    user: dict

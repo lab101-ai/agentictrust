@@ -353,7 +353,9 @@ class IssuedToken(Base):
                     event_type="issued",
                     task_id=new_token.task_id,
                     parent_task_id=new_token.parent_task_id,
-                    details={"scopes": scope, "granted_tools": granted_tools}
+                    details={"scopes": scope, "granted_tools": granted_tools},
+                    delegator_sub=delegator_sub,
+                    delegation_chain=delegation_chain if isinstance(delegation_chain, list) else None,
                 )
             except Exception as e:
                 audit_success = False
@@ -473,6 +475,8 @@ class IssuedToken(Base):
                     task_id=self.task_id,
                     parent_task_id=self.parent_task_id,
                     details={"reason": reason} if reason else {},
+                    delegator_sub=self.delegator_sub,
+                    delegation_chain=None,
                 )
                 
                 # 2. Add secondary token_revoked event
@@ -483,6 +487,8 @@ class IssuedToken(Base):
                     task_id=self.task_id,
                     parent_task_id=self.parent_task_id,
                     details={"revoked_children": False}, # No children by default
+                    delegator_sub=self.delegator_sub,
+                    delegation_chain=None,
                 )
                 
                 # 3. Task audit
@@ -527,6 +533,8 @@ class IssuedToken(Base):
                     task_id=self.task_id,
                     parent_task_id=self.parent_task_id,
                     details={"revoked_children": True},
+                    delegator_sub=self.delegator_sub,
+                    delegation_chain=None,
                 )
                 
                 # 2. Task audit with revoked_children=True

@@ -11,6 +11,7 @@ from .registry import (
     get_agent_engine,
     get_tool_engine,
     get_user_engine,
+    get_authorization_engine,
     initialize_core_engines  # noqa: F401   
 )
 
@@ -21,5 +22,6 @@ __all__ = [
     "get_agent_engine",
     "get_tool_engine",
     "get_user_engine",
+    "get_authorization_engine",
     "initialize_core_engines"
 ]

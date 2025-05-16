@@ -3,6 +3,16 @@ from typing import Dict, Any
 from agentictrust.core import get_user_engine
 from agentictrust.core.policy.opa_client import opa_client
 
+# Schemas
+from agentictrust.schemas.users import (
+    LoginRequest,
+    LoginResponse,
+    PasswordResetStartRequest,
+    PasswordResetStartResponse,
+    PasswordResetConfirmRequest,
+    PasswordResetConfirmResponse,
+)
+
 router = APIRouter(prefix="/api/users", tags=["users"])
 engine = get_user_engine()
 
@@ -77,3 +87,45 @@ async def delete_user(user_id: str) -> Dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to delete user")
+
+# ---------------------------------------------------------------------------
+# Authentication / Password-reset endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/login", response_model=LoginResponse)
+async def login(req: LoginRequest):
+    """Authenticate a user and return a short-lived access token."""
+    try:
+        result = engine.authenticate(req.username_or_email, req.password)
+        return LoginResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="login_failed")
+
+@router.post("/password-reset/start", response_model=PasswordResetStartResponse)
+async def password_reset_start(req: PasswordResetStartRequest):
+    """Initiate password reset; returns a one-time reset token."""
+    try:
+        token = engine.start_password_reset(req.email)
+        return PasswordResetStartResponse(reset_token=token)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="password_reset_start_failed")
+
+@router.post("/password-reset/confirm", response_model=PasswordResetConfirmResponse)
+async def password_reset_confirm(req: PasswordResetConfirmRequest):
+    """Confirm password reset with the supplied token and new password."""
+    try:
+        user_dict = engine.confirm_password_reset(req.token, req.new_password)
+        # Sync updated user hash with OPA
+        try:
+            opa_client.put_data(f"runtime/users/{user_dict['user_id']}", user_dict)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"OPA sync failed: {e}")
+        return PasswordResetConfirmResponse(user=user_dict)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="password_reset_confirm_failed")

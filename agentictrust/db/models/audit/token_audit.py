@@ -18,8 +18,24 @@ class TokenAuditLog(BaseAuditLog):
     details = Column(JSON, nullable=True)
     source_ip = Column(String(45), nullable=True)
 
+    # Delegation context (added Task 5)
+    delegator_sub = Column(String(255), nullable=True)
+    delegation_chain = Column(JSON, nullable=True)  # list[str]
+
     @classmethod
-    def log(cls, token_id, client_id, event_type, task_id=None, parent_task_id=None, details=None, source_ip=None):
+    def log(
+        cls,
+        token_id,
+        client_id,
+        event_type,
+        task_id: str | None = None,
+        parent_task_id: str | None = None,
+        details: dict | None = None,
+        source_ip: str | None = None,
+        *,
+        delegator_sub: str | None = None,
+        delegation_chain: list[str] | None = None,
+    ):
         try:
             entry = cls(
                 token_id=token_id,
@@ -28,7 +44,9 @@ class TokenAuditLog(BaseAuditLog):
                 parent_task_id=parent_task_id,
                 event_type=event_type,
                 details=details or {},
-                source_ip=source_ip
+                source_ip=source_ip,
+                delegator_sub=delegator_sub,
+                delegation_chain=delegation_chain or [],
             )
             db_session.add(entry)
             db_session.commit()
@@ -48,5 +66,7 @@ class TokenAuditLog(BaseAuditLog):
             'event_type': self.event_type,
             'details': self.details or {},
             'source_ip': self.source_ip,
+            'delegator_sub': self.delegator_sub,
+            'delegation_chain': self.delegation_chain or [],
         })
         return data

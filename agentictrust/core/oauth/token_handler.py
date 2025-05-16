@@ -139,11 +139,28 @@ class TokenHandler:
                 event_type="issue_failed",
                 task_id=task_id,
                 details={"reason": "invalid_client"},
+                delegator_sub=None,
+                delegation_chain=None,
             )
             raise ValueError("invalid_client")
 
         # 2. Scopes
         scope_list = data.scope.split(" ") if data.scope else []
+
+        # ----- Policy check (Task4) ----------------------------
+        from agentictrust.core.registry import get_policy_engine
+        policy_engine = get_policy_engine()
+        allowed = policy_engine.is_allowed(
+            client_id=client_id,
+            action="token_issue_client_credentials",
+            input_ctx={
+                "client_id": client_id,
+                "requested_scopes": scope_list,
+                "launch_reason": getattr(data, "launch_reason", None),
+            },
+        )
+        if not allowed:
+            raise ValueError("access_denied_by_policy")
 
         # 3. Launch reason
         launch_reason_enum = getattr(
@@ -226,6 +243,8 @@ class TokenHandler:
                     task_id=task_id,
                     parent_task_id="unknown",
                     details={"reason": "invalid_parent_token"},
+                    delegator_sub=None,
+                    delegation_chain=None,
                 )
                 raise ValueError("invalid_parent_token")
             parent_token_id = parent.token_id

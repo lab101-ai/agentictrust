@@ -9,6 +9,7 @@ from agentictrust.routers import (
     oauth,
     admin,
     users,
+    authorizations,
     discovery,
     delegations,
 )

@@ -15,6 +15,8 @@ from agentictrust.core.delegation.engine import DelegationEngine
 from agentictrust.core.agents.engine import AgentEngine
 from agentictrust.core.tools.engine import ToolEngine
 from agentictrust.core.users.engine import UserEngine
+from agentictrust.core.authorizations.engine import AuthorizationEngine
+from agentictrust.core.policy.engine import PolicyEngine, get_policy_engine
 
 # ---------------------------------------------------------------------------
 # Lazy-singleton helpers
@@ -59,6 +61,12 @@ def get_user_engine() -> UserEngine:
     """Return a singleton :class:`UserEngine` instance."""
     return UserEngine()
 
+# Lazy-singleton helper for AuthorizationEngine
+@lru_cache(maxsize=None)
+def get_authorization_engine() -> AuthorizationEngine:
+    """Return a singleton :class:`AuthorizationEngine` instance."""
+    return AuthorizationEngine()
+
 # If additional engines are introduced (e.g., AgentEngine), create
 # similar `get_..._engine` helpers here and add them to ``_ALL_ENGINE_GETTERS``.
 
@@ -69,6 +77,8 @@ _ALL_ENGINE_GETTERS = [
     get_agent_engine,
     get_tool_engine,
     get_user_engine,
+    get_authorization_engine,
+    get_policy_engine,
 ]
 
 # ---------------------------------------------------------------------------

@@ -21,7 +21,7 @@ class User(Base):
     username = Column(String(100), unique=True, nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     full_name = Column(String(200), nullable=True)
-    hashed_password = Column(String(200), nullable=True)
+    hashed_password = Column(String(200), nullable=False)
     is_active = Column(Boolean, default=True)
     is_external = Column(Boolean, default=False)
     # New organizational attributes
@@ -143,3 +143,11 @@ class User(Base):
             logger.error(f"Error deleting user: {e}")
             db_session.rollback()
             raise
+
+    def set_password(self, password: str):
+        from agentictrust.utils.auth import hash_password
+        self.hashed_password = hash_password(password)
+
+    def verify_password(self, password: str) -> bool:
+        from agentictrust.utils.auth import verify_password
+        return verify_password(password, self.hashed_password)

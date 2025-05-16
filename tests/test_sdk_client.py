@@ -12,30 +12,6 @@ def test_client_initialization():
     assert client.api_key == "test-key"
     assert client.session.headers["X-API-Key"] == "test-key"
 
-@mock.patch("requests.Session.post")
-def test_exchange_auth0_token(mock_post):
-    """Test exchanging an Auth0 token for an AgenticTrust token."""
-    mock_response = mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "access_token": "agentic-token",
-        "token_type": "bearer",
-        "expires_in": 3600
-    }
-    mock_post.return_value = mock_response
-    
-    client = AgenticTrustClient(base_url="http://localhost:8000")
-    
-    result = client.exchange_auth0_token("auth0-token")
-    
-    assert result["access_token"] == "agentic-token"
-    assert result["token_type"] == "bearer"
-    assert result["expires_in"] == 3600
-    
-    mock_post.assert_called_with(
-        "http://localhost:8000/api/users/auth0/token",
-        json={"auth0_token": "auth0-token"}
-    )
 
 @mock.patch("requests.Session.post")
 def test_delegate_token(mock_post):

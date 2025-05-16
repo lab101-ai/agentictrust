@@ -12,11 +12,16 @@ from agentictrust.db.models.audit.token_audit import TokenAuditLog
 from agentictrust.db.models.audit.delegation_audit import DelegationAuditLog
 from agentictrust.core.oauth.code_handler import code_handler
 from agentictrust.core.oauth.token_handler import token_handler
+from agentictrust.db import db_session
+from datetime import datetime
 
 # Utilities
 from agentictrust.core.oauth.utils import verify_token
-from agentictrust.schemas.oauth import TokenRequestClientCredentials, LaunchReason
+from agentictrust.schemas.oauth import TokenRequestClientCredentials, LaunchReason, DelegationType
 from agentictrust.utils.logger import logger
+from agentictrust.core.auth.auth0 import verify_auth0_token, extract_user_from_claims
+from agentictrust.db.models.user_agent_authorization import UserAgentAuthorization
+from fastapi import HTTPException
 
 class OAuthEngine:
     """Facade for issuing & validating tokens.
@@ -282,4 +287,148 @@ class OAuthEngine:
         final_scope = requested_scopes if requested_scopes is not None else grant.scope
 
         # Emit audit handled in validate_grant on success.
-        return cast(str, grant.principal_id), final_scope 
+        return cast(str, grant.principal_id), final_scope   
+        
+    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    async def process_human_delegation(self, data):
+        """Process delegation from human user to agent."""
+        try:
+            delegator_token = data.delegator_token
+            delegator_claims = None
+            user = None
+            token_obj = None
+            
+            try:
+                delegator_claims = await verify_auth0_token(delegator_token, "auth0_domain")  # Domain should be configured
+                user_data = extract_user_from_claims(delegator_claims)
+                
+                from agentictrust.core.users.engine import UserEngine
+                user_engine = UserEngine()
+                user = user_engine.find_user_by_auth0_id(user_data['auth0_id'])
+                
+                if not user:
+                    logger.error(f"User not found for Auth0 ID: {user_data['auth0_id']}")
+                    raise ValueError("Invalid delegator token: user not found")
+            except Exception as auth0_error:
+                logger.debug(f"Not an Auth0 token: {str(auth0_error)}")
+                token_obj = verify_token(delegator_token)
+                
+                if not token_obj:
+                    logger.error("Invalid delegator token")
+                    raise ValueError("Invalid delegator token")
+                
+                from agentictrust.db.models.user import User
+                user = User.query.filter_by(user_id=token_obj.delegator_sub).first()
+                
+                if not user:
+                    logger.error(f"User not found for token: {token_obj.token_id}")
+                    raise ValueError("Invalid delegator token: user not found")
+            
+            # Verify user-agent authorization
+            agent_id = data.client_id
+            authorizations = UserAgentAuthorization.query.filter_by(
+                user_id=user.user_id,
+                agent_id=agent_id,
+                is_active=True
+            ).all()
+            
+            if not authorizations:
+                logger.error(f"No active authorization found for user {user.user_id} and agent {agent_id}")
+                raise ValueError("No authorization found for this agent")
+            
+            valid_auth = None
+            requested_scopes = set(data.scope)
+            
+            for auth in authorizations:
+                auth_scopes = set(auth.scopes.split(' ') if isinstance(auth.scopes, str) else auth.scopes)
+                if requested_scopes.issubset(auth_scopes):
+                    valid_auth = auth
+                    break
+            
+            if not valid_auth:
+                logger.error(f"No authorization with sufficient scopes for user {user.user_id} and agent {agent_id}")
+                raise ValueError("Insufficient scopes in authorization")
+            
+            if valid_auth.expires_at and valid_auth.expires_at < datetime.utcnow():
+                logger.error(f"Authorization {valid_auth.authorization_id} has expired")
+                raise ValueError("Authorization has expired")
+            
+            delegation_chain = []
+            
+            if delegator_claims:
+                delegation_chain.append({
+                    "type": "auth0",
+                    "sub": user.auth0_id,
+                    "iat": datetime.utcnow().timestamp()
+                })
+            else:
+                delegation_chain.append({
+                    "type": "agentictrust",
+                    "token_id": token_obj.token_id,
+                    "sub": user.user_id,
+                    "iat": datetime.utcnow().timestamp()
+                })
+            
+            agent = Agent.query.filter_by(client_id=agent_id).first()
+            
+            if not agent:
+                logger.error(f"Agent not found: {agent_id}")
+                raise ValueError("Agent not found")
+            
+            agent_type = agent.agent_type or "unknown"
+            agent_model = agent.agent_model or "unknown"
+            agent_provider = agent.agent_provider or "unknown"
+            agent_version = agent.agent_version
+            
+            task_id = data.task_id or str(uuid.uuid4())
+            
+            token, access_token, refresh_token = IssuedToken.create(
+                client_id=agent_id,
+                scope=' '.join(data.scope) if isinstance(data.scope, list) else data.scope,
+                granted_tools=agent.tools,
+                task_id=task_id,
+                agent_instance_id=data.agent_instance_id or str(uuid.uuid4()),
+                agent_type=agent_type,
+                agent_model=agent_model,
+                agent_provider=agent_provider,
+                agent_version=agent_version,
+                delegator_sub=user.user_id,
+                delegation_chain=delegation_chain,
+                delegation_purpose=data.purpose,
+                delegation_constraints=valid_auth.constraints,
+                parent_task_id=data.parent_task_id,
+                task_description=data.task_description,
+                scope_inheritance_type="delegated",
+                code_challenge=data.code_challenge,
+                code_challenge_method=data.code_challenge_method,
+                launch_reason=LaunchReason.agent_delegated,
+                launched_by=user.user_id
+            )
+            
+            DelegationAuditLog.log_event(
+                grant_id=valid_auth.authorization_id,
+                action="token_issued",
+                principal_id=user.user_id,
+                delegate_id=agent_id,
+                token_id=token.token_id,
+                scope=data.scope
+            )
+            
+            db_session.commit()
+            
+            return {
+                "access_token": access_token,
+                "token_type": "Bearer",
+                "expires_in": int((token.expires_at - datetime.utcnow()).total_seconds()),
+                "refresh_token": refresh_token,
+                "scope": ' '.join(data.scope) if isinstance(data.scope, list) else data.scope,
+                "task_id": task_id
+            }
+        except ValueError as e:
+            logger.error(f"Validation error in human delegation: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"Error processing human delegation: {str(e)}")
+            db_session.rollback()
+            raise HTTPException(status_code=500, detail=str(e)) 

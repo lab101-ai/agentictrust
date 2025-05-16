@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, JSONResponse
 from typing import Dict, Any, Optional
+from agentictrust.core.policy.opa_client import opa_client
+from agentictrust.db.models.role import Role
 from agentictrust.schemas.oauth import (
     TokenRequest,
     IntrospectRequest,
@@ -8,6 +10,9 @@ from agentictrust.schemas.oauth import (
     TokenRequestClientCredentials,
     TokenRequestRefreshToken,
     TokenRequestAuthorizationCode,
+    DelegationTokenRequest,
+    DelegationTokenResponse,
+    DelegationType,
 )
 # Use centralised OAuth engine
 from agentictrust.core.registry import get_oauth_engine
@@ -255,6 +260,25 @@ async def authorize(request: Request) -> Any:
     redirect_url = resp.get("redirect_url")
     return RedirectResponse(url=redirect_url)
 
+@router.post("/delegate", response_model=DelegationTokenResponse)
+async def delegate_token(request: DelegationTokenRequest):
+    """Issue a delegated token from a human user or agent to an agent."""
+    try:
+        if request.delegation_type == DelegationType.HUMAN_TO_AGENT:
+            response = await engine.process_human_delegation(request)
+        elif request.delegation_type == DelegationType.AGENT_TO_AGENT:
+            raise HTTPException(status_code=400, detail="Agent-to-agent delegation not yet implemented")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid delegation type")
+        
+        return DelegationTokenResponse(**response)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing delegation request: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/authorize")
 async def authorize_endpoint(
     response_type: str,
@@ -294,3 +318,59 @@ async def authorize_endpoint(
     except Exception as e:
         logger.error(f"Authorization request failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to process authorization request")
+
+@router.post("/verify_with_rbac")
+async def verify_token_with_rbac(request: Request):
+    """Verify a token and check RBAC permissions."""
+    try:
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+        
+        token = auth_header.split(' ')[1]
+        
+        from agentictrust.core.oauth.utils import verify_token
+        token_obj = verify_token(token)
+        
+        if not token_obj:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        data = await request.json()
+        resource = data.get('resource')
+        action = data.get('action')
+        
+        if not resource or not action:
+            raise HTTPException(status_code=400, detail="Resource and action are required")
+        
+        from agentictrust.db.models.agent import Agent
+        agent = Agent.query.get(token_obj.client_id)
+        
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        input_data = {
+            "agent": {
+                "roles": [role.to_dict() for role in agent.roles]
+            },
+            "resource": resource,
+            "action": action
+        }
+        
+        allowed = opa_client.query_bool_sync("data.agentictrust.rbac.allow", input_data)
+        
+        if not allowed:
+            raise HTTPException(status_code=403, detail="Permission denied")
+        
+        return {
+            "token_id": token_obj.token_id,
+            "client_id": token_obj.client_id,
+            "scopes": token_obj.scopes.split(' ') if isinstance(token_obj.scopes, str) else token_obj.scopes,
+            "expires_at": token_obj.expires_at.isoformat() if token_obj.expires_at else None,
+            "is_valid": True,
+            "rbac_check": "passed"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error verifying token with RBAC: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

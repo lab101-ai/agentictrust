@@ -2,7 +2,7 @@
 import pytest
 import json
 import uuid
-from app.db.models import Policy, Scope
+from agentictrust.db.models import Policy, Scope
 
 def test_create_policy(test_db, policy_engine):
     """Test creating a policy using the refactored policy engine."""

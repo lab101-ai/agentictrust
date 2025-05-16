@@ -1,7 +1,7 @@
 """Tests for the refactored ScopeEngine."""
 import pytest
-from app.core.scope.engine import ScopeEngine
-from app.db.models import Scope
+from agentictrust.core.scope.engine import ScopeEngine
+from agentictrust.db.models import Scope
 
 def test_create_scope(test_db, scope_engine):
     """Test creating a scope using the refactored scope engine."""

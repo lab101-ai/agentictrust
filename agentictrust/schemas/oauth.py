@@ -11,6 +11,11 @@ class LaunchReason(str, Enum):
     system_job = "system_job"
     agent_delegated = "agent_delegated"
 
+# DelegationType enum for delegation context
+class DelegationType(str, Enum):
+    HUMAN_TO_AGENT = "human_to_agent"
+    AGENT_TO_AGENT = "agent_to_agent"
+
 # Define Delegation Step Structure (as per Proposal 2.4.2)
 class DelegationStep(BaseModel):
     iss: str = Field(..., description="Issuer of this delegation step.")
@@ -125,3 +130,27 @@ class RevokeRequest(BaseModel):
     token: str
     token_type_hint: Optional[Literal['access_token', 'refresh_token']] = None
     revoke_children: Optional[bool] = False  # Whether to revoke descendant tokens as well
+
+class DelegationTokenRequest(BaseModel):
+    """Request model for delegating tokens from humans to agents."""
+    client_id: str = Field(..., description="ID of the agent requesting delegation")
+    delegation_type: DelegationType = Field(..., description="Type of delegation (human-to-agent or agent-to-agent)")
+    delegator_token: str = Field(..., description="Token from the delegator (human or agent)")
+    code_challenge: Optional[str] = Field(None, description="PKCE code challenge")
+    code_challenge_method: Optional[str] = Field("S256", description="PKCE code challenge method")
+    scope: List[str] = Field(..., description="List of scopes to request")
+    task_description: Optional[str] = Field(None, description="Description of the task")
+    task_id: Optional[str] = Field(None, description="ID of the task")
+    parent_task_id: Optional[str] = Field(None, description="ID of the parent task")
+    purpose: Optional[str] = Field(None, description="Purpose of the delegation")
+    constraints: Optional[Dict[str, Any]] = Field(None, description="Constraints on the delegation")
+    agent_instance_id: Optional[str] = Field(None, description="Unique identifier for this agent instance")
+    
+class DelegationTokenResponse(BaseModel):
+    """Response model for delegation token requests."""
+    access_token: str
+    token_type: str
+    expires_in: int
+    refresh_token: Optional[str] = None
+    scope: str
+    task_id: str

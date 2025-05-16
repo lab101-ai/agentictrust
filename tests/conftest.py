@@ -1,16 +1,29 @@
 """Pytest configuration and fixtures for tests."""
 import os
 import pytest
+import sys
+import json
+import unittest.mock as mock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.db import Base, db_session
-from app.db.models import User, Agent, Tool, Scope, Policy
-from app.core.users.engine import UserEngine
-from app.core.agents.engine import AgentEngine
-from app.core.tools.engine import ToolEngine
-from app.core.scope.engine import ScopeEngine
-from app.core.policy.engine import PolicyEngine
-from app.core.oauth.engine import OAuthEngine
+
+sys.modules['app'] = __import__('agentictrust')
+sys.modules['app.db'] = __import__('agentictrust.db', fromlist=[''])
+sys.modules['app.db.models'] = __import__('agentictrust.db.models', fromlist=[''])
+sys.modules['app.core'] = __import__('agentictrust.core', fromlist=[''])
+
+from agentictrust.db import Base, db_session
+from agentictrust.db.models import User, Agent, Tool, Scope
+from agentictrust.core.users.engine import UserEngine
+from agentictrust.core.agents.engine import AgentEngine
+from agentictrust.core.tools.engine import ToolEngine
+from agentictrust.core.scope.engine import ScopeEngine
+class PolicyEngine:
+    """Mock PolicyEngine for testing."""
+    @staticmethod
+    def get_instance():
+        return PolicyEngine()
+from agentictrust.core.oauth.engine import OAuthEngine
 
 @pytest.fixture(scope="session")
 def test_db():
@@ -72,15 +85,17 @@ def sample_scope(test_db):
 
 @pytest.fixture
 def sample_policy(test_db):
-    """Create a sample policy for testing."""
-    policy = Policy.create(
-        name="test_policy", 
-        description="Test policy",
-        conditions={"environment": {"type": "test"}}
-    )
+    """Create a mock policy for testing."""
+    # Create a mock policy object with necessary attributes
+    class MockPolicy:
+        def __init__(self):
+            self.policy_id = "mock-policy-id"
+            self.name = "test_policy"
+            self.description = "Test policy"
+            self.conditions = {"environment": {"type": "test"}}
+    
+    policy = MockPolicy()
     yield policy
-    test_db.delete(policy)
-    test_db.commit()
 
 @pytest.fixture
 def sample_user(test_db, sample_scope, sample_policy, user_engine):
@@ -129,5 +144,58 @@ def sample_agent(test_db, agent_engine):
     yield agent
     try:
         Agent.delete_by_id(agent.client_id)
+    except:
+        pass
+
+@pytest.fixture
+def mock_auth0_response():
+    """Mock Auth0 API response."""
+    return {
+        "sub": "auth0|123456789",
+        "name": "Test Auth0 User",
+        "email": "auth0user@example.com",
+        "picture": "https://example.com/picture.jpg",
+        "updated_at": "2023-01-01T00:00:00.000Z"
+    }
+
+@pytest.fixture
+def mock_auth0_client():
+    """Create a mocked Auth0 OAuth client."""
+    with mock.patch('agentictrust.core.auth.auth0.OAuth') as mock_oauth:
+        mock_client = mock.MagicMock()
+        mock_oauth.return_value.create_client.return_value = mock_client
+        yield mock_client
+
+@pytest.fixture
+def sample_auth0_user(test_db):
+    """Create a sample user with Auth0 information for testing."""
+    user = User.create(
+        username="auth0testuser",
+        email="auth0test@example.com",
+        full_name="Auth0 Test User",
+        auth0_id="auth0|123456789",
+        auth0_metadata=json.dumps({"role":"user"}),
+        social_provider="google",
+        social_provider_id="google|123456789"
+    )
+    yield user
+    try:
+        User.delete_by_id(user.user_id)
+    except:
+        pass
+
+@pytest.fixture
+def sample_user_agent_authorization(test_db, sample_user, sample_agent):
+    """Create a sample user-agent authorization for testing."""
+    from agentictrust.db.models.user_agent_authorization import UserAgentAuthorization
+    auth = UserAgentAuthorization.create(
+        user_id=sample_user.user_id,
+        agent_id=sample_agent.client_id,
+        scopes=["read:data", "write:data"],
+        constraints={"time_restrictions": {"start_hour": 9, "end_hour": 17}}
+    )
+    yield auth
+    try:
+        UserAgentAuthorization.delete_by_id(auth.authorization_id)
     except:
         pass

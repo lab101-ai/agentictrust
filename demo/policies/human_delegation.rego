@@ -33,10 +33,10 @@ is_expired(expires_at) if {
 # Check if requested scopes are a subset of authorized scopes
 is_scope_subset(requested, authorized) if {
     # Convert authorized scopes to a set
-    authorized_set := { scope | scope in authorized }
+    authorized_set := { scope | some scope in authorized }
     
     # Check if all requested scopes are in the authorized set
-    count({ scope | scope in requested; not scope in authorized_set }) == 0
+    count({ scope | some scope in requested; not scope in authorized_set }) == 0
 }
 
 # Check if delegation satisfies additional constraints

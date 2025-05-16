@@ -33,9 +33,6 @@ class User(Base):
     # Arbitrary user metadata (e.g., partner affiliation)
     attributes = Column(JSON, nullable=True)
     
-    last_login = Column(DateTime, nullable=True)
-    refresh_token = Column(String(512), nullable=True)
-
     scopes = relationship('Scope', secondary=user_scopes, backref='users')
     
     @classmethod
@@ -116,8 +113,7 @@ class User(Base):
             'attributes': self.attributes or {},
             'scopes': [scope.scope_id for scope in self.scopes],
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
     @classmethod

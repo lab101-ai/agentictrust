@@ -14,7 +14,8 @@ class UserEngine:
     def create_user(self, username: str, email: str, full_name: Optional[str] = None,
                     hashed_password: Optional[str] = None, is_external: bool = False,
                     department: Optional[str] = None, job_title: Optional[str] = None,
-                    level: Optional[str] = None, scopes: Optional[List[str]] = None) -> Dict[str, Any]:
+                    level: Optional[str] = None, scopes: Optional[List[str]] = None,
+                    policies: Optional[List[str]] = None) -> Dict[str, Any]:
         """Create a new user and return dict."""
         # Basic validation
         if not username or not email:
@@ -33,6 +34,7 @@ class UserEngine:
                     scope_ids.append(scope_obj.scope_id)
                 else:
                     raise ValueError(f"Scope '{s}' not found")
+                    
                     
         # Create the user via the User model
         user = User.create(

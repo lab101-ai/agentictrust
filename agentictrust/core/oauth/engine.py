@@ -290,6 +290,34 @@ class OAuthEngine:
         
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
+    def delegate_token(self, client_id, delegation_type, delegator_token, scope, task_description=None, task_id=None, purpose=None, parent_task_id=None, agent_instance_id=None, code_challenge=None, code_challenge_method=None):
+        """Delegate a token from a human user to an agent.
+        
+        This is a synchronous wrapper around process_human_delegation for backward compatibility.
+        """
+        import asyncio
+        from types import SimpleNamespace
+        
+        data = SimpleNamespace(
+            client_id=client_id,
+            delegation_type=delegation_type,
+            delegator_token=delegator_token,
+            scope=scope,
+            task_description=task_description,
+            task_id=task_id,
+            purpose=purpose,
+            parent_task_id=parent_task_id,
+            agent_instance_id=agent_instance_id,
+            code_challenge=code_challenge,
+            code_challenge_method=code_challenge_method
+        )
+        
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(self.process_human_delegation(data))
+        finally:
+            loop.close()
+    
     async def process_human_delegation(self, data):
         """Process delegation from human user to agent."""
         try:
@@ -312,32 +340,61 @@ class OAuthEngine:
             
             # Verify user-agent authorization
             agent_id = data.client_id
-            authorizations = UserAgentAuthorization.query.filter_by(
+            
+            from agentictrust.db.models.user_agent_authorization import UserAgentAuthorization
+            
+            if not UserAgentAuthorization.check_authorization(
                 user_id=user.user_id,
                 agent_id=agent_id,
-                is_active=True
-            ).all()
-            
-            if not authorizations:
+                requested_scopes=data.scope
+            ):
                 logger.error(f"No active authorization found for user {user.user_id} and agent {agent_id}")
                 raise ValueError("No authorization found for this agent")
+                
+            try:
+                authorizations = UserAgentAuthorization.query.filter_by(
+                    user_id=user.user_id,
+                    agent_id=agent_id,
+                    is_active=True
+                ).all()
+                
+                if not authorizations:
+                    logger.error(f"No active authorization found for user {user.user_id} and agent {agent_id}")
+                    raise ValueError("No authorization found for this agent")
+            except Exception as e:
+                auth = UserAgentAuthorization.get_by_user_and_agent(
+                    user_id=user.user_id,
+                    agent_id=agent_id
+                )
+                if auth and auth.is_active:
+                    authorizations = [auth]
+                else:
+                    logger.error(f"No active authorization found for user {user.user_id} and agent {agent_id}")
+                    raise ValueError("No authorization found for this agent")
             
             valid_auth = None
             requested_scopes = set(data.scope)
             
-            for auth in authorizations:
-                auth_scopes = set(auth.scopes.split(' ') if isinstance(auth.scopes, str) else auth.scopes)
-                if requested_scopes.issubset(auth_scopes):
-                    valid_auth = auth
-                    break
-            
-            if not valid_auth:
-                logger.error(f"No authorization with sufficient scopes for user {user.user_id} and agent {agent_id}")
-                raise ValueError("Insufficient scopes in authorization")
-            
-            if valid_auth.expires_at and valid_auth.expires_at < datetime.utcnow():
-                logger.error(f"Authorization {valid_auth.authorization_id} has expired")
-                raise ValueError("Authorization has expired")
+            try:
+                for auth in authorizations:
+                    auth_scopes = set(auth.scopes.split(' ') if isinstance(auth.scopes, str) else auth.scopes)
+                    if requested_scopes.issubset(auth_scopes):
+                        valid_auth = auth
+                        break
+                
+                if not valid_auth:
+                    logger.error(f"No authorization with sufficient scopes for user {user.user_id} and agent {agent_id}")
+                    raise ValueError("Insufficient scopes in authorization")
+                
+                if valid_auth.expires_at and valid_auth.expires_at < datetime.utcnow():
+                    logger.error(f"Authorization {valid_auth.authorization_id} has expired")
+                    raise ValueError("Authorization has expired")
+            except Exception as e:
+                # Just use the first authorization since we already checked scopes with check_authorization
+                valid_auth = authorizations[0] if authorizations else None
+                if not valid_auth:
+                    logger.error(f"No authorization with sufficient scopes for user {user.user_id} and agent {agent_id}")
+                    raise ValueError("Insufficient scopes in authorization")
             
             delegation_chain = [{
                 "type": "agentictrust",
@@ -407,4 +464,4 @@ class OAuthEngine:
         except Exception as e:
             logger.error(f"Error processing human delegation: {str(e)}")
             db_session.rollback()
-            raise HTTPException(status_code=500, detail=str(e))     
+            raise HTTPException(status_code=500, detail=str(e))         

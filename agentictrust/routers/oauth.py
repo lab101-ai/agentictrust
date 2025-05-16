@@ -319,6 +319,45 @@ async def authorize_endpoint(
         logger.error(f"Authorization request failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to process authorization request")
 
+def verify_with_rbac(token, resource, action, roles=None, permissions=None):
+    """Verify RBAC permissions for a token.
+    
+    Args:
+        token (str): The token to verify
+        resource (str): The resource being accessed
+        action (str): The action being performed
+        roles (list): Optional list of roles to check
+        permissions (list): Optional list of permissions to check
+        
+    Returns:
+        dict: Result of the RBAC check
+    """
+    try:
+        from agentictrust.core.oauth.utils import verify_token
+        token_obj = verify_token(token)
+        
+        if not token_obj:
+            return {"allowed": False, "error": "Invalid token"}
+        
+        input_data = {
+            "roles": roles or [],
+            "permissions": permissions or [],
+            "resource": resource,
+            "action": action
+        }
+        
+        result = opa_client.check_policy("rbac", input_data)
+        
+        return {
+            "allowed": result.get("result", {}).get("allow", False),
+            "token_id": token_obj.token_id,
+            "client_id": token_obj.client_id,
+            "scopes": token_obj.scopes.split(' ') if isinstance(token_obj.scopes, str) else token_obj.scopes
+        }
+    except Exception as e:
+        logger.error(f"Error verifying with RBAC: {str(e)}")
+        return {"allowed": False, "error": str(e)}
+
 @router.post("/verify_with_rbac")
 async def verify_token_with_rbac(request: Request):
     """Verify a token and check RBAC permissions."""

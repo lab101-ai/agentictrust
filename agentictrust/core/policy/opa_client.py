@@ -134,6 +134,33 @@ class OPAClient:
         except Exception as e:
             logger.error(f"OPA query_bool_sync failed ({url}): {e}")
             return False
+            
+    def check_policy(self, policy_name: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Check a policy with the given input data.
+        
+        Args:
+            policy_name: Name of the policy to check
+            input_data: Input data for policy evaluation
+            
+        Returns:
+            Dictionary with policy evaluation result
+        """
+        if not self.enabled:
+            return {"result": {"allow": True, "violations": []}}
+            
+        url = f"{Config.OPA_HOST}:{Config.OPA_PORT}/v1/data/{policy_name}"
+        try:
+            resp = requests.post(url, json={"input": input_data}, timeout=1.0)
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            logger.error(f"OPA check_policy failed ({url}): {e}")
+            return {"result": {"allow": False, "violations": [f"Policy check error: {str(e)}"]}}
+            
+    def evaluate_policy(self, policy_name: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Alias for check_policy for backward compatibility."""
+        return self.check_policy(policy_name, input_data)
 
 # Singleton instance to be imported elsewhere
-opa_client = OPAClient() 
+opa_client = OPAClient()  

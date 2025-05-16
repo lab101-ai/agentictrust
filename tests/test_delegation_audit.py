@@ -30,8 +30,7 @@ def test_create_delegation_audit_log(test_db, sample_user, sample_agent):
     assert audit_log.context["ip_address"] == "127.0.0.1"
     assert isinstance(audit_log.timestamp, datetime)
     
-    test_db.delete(audit_log)
-    test_db.commit()
+    DelegationAuditLog.delete(audit_log)
 
 def test_get_delegation_chain(test_db, sample_user, sample_agent):
     """Test retrieving a delegation chain."""
@@ -66,9 +65,8 @@ def test_get_delegation_chain(test_db, sample_user, sample_agent):
     assert chain[0].token_id == "token-parent"
     assert chain[1].token_id == "token-child"
     
-    test_db.delete(child_log)
-    test_db.delete(parent_log)
-    test_db.commit()
+    DelegationAuditLog.delete(child_log)
+    DelegationAuditLog.delete(parent_log)
 
 def test_get_user_delegations(test_db, sample_user, sample_agent):
     """Test retrieving user delegations."""
@@ -103,6 +101,5 @@ def test_get_user_delegations(test_db, sample_user, sample_agent):
     assert any(d.token_id == "token-principal" for d in activity["delegations_as_principal"])
     assert any(d.token_id == "token-delegate" for d in activity["delegations_as_delegate"])
     
-    test_db.delete(as_principal)
-    test_db.delete(as_delegate)
-    test_db.commit()
+    DelegationAuditLog.delete(as_principal)
+    DelegationAuditLog.delete(as_delegate)

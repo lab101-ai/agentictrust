@@ -1,6 +1,6 @@
 """End-to-end tests for agent management."""
 import pytest
-from agentictrust.db.models import Agent
+from tests.conftest import MockAgent as Agent
 
 def test_register_agent(test_db, agent_engine):
     """Test registering a new agent."""

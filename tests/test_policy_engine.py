@@ -9,10 +9,22 @@ Policy = MockPolicy
 
 def test_create_policy(test_db, policy_engine):
     """Test creating a policy using the refactored policy engine."""
-    # Create a scope to use in the policy
-    scope = Scope.create(name="test:policy:scope", description="Test scope for policy")
+    # Create a unique scope name to avoid collisions
+    unique_id = str(uuid.uuid4())[:8]
+    scope_name = f"test:policy:scope:{unique_id}"
     
-    policy_name = "test_policy_creation"
+    # Clean up any existing scope with this name
+    try:
+        existing_scope = Scope.find_by_name(scope_name)
+        if existing_scope:
+            Scope.delete_by_id(existing_scope.scope_id)
+    except Exception as e:
+        pass
+    
+    # Create a scope to use in the policy
+    scope = Scope.create(name=scope_name, description="Test scope for policy")
+    
+    policy_name = f"test_policy_creation_{unique_id}"
     policy_conditions = {"client_id": ["test-client"]}
     
     # Create a policy via the engine
@@ -33,23 +45,39 @@ def test_create_policy(test_db, policy_engine):
     assert len(policy_data["scopes"]) == 1
     
     # Verify policy exists in database
-    policy = Policy.query.filter_by(name=policy_name).first()
+    policy = Policy.query().filter_by(name=policy_name).first()
     assert policy is not None
     assert policy.effect == "allow"
     assert len(policy.scopes) == 1
     assert policy.scopes[0].name == scope.name
     
     # Clean up
-    Policy.delete_by_id(policy.policy_id)
-    Scope.delete_by_id(scope.scope_id)
+    try:
+        Policy.delete_by_id(policy.policy_id)
+        Scope.delete_by_id(scope.scope_id)
+    except Exception as e:
+        print(f"Cleanup error (can be ignored): {str(e)}")
 
 def test_get_policy(test_db, policy_engine):
     """Test getting a policy using the refactored policy engine."""
-    # Create a scope and policy for testing
-    scope = Scope.create(name="test:get:policy:scope", description="Scope for testing get policy")
+    # Create a unique scope name to avoid collisions
+    unique_id = str(uuid.uuid4())[:8]
+    scope_name = f"test:get:policy:scope:{unique_id}"
     
+    # Clean up any existing scope with this name
+    try:
+        existing_scope = Scope.find_by_name(scope_name)
+        if existing_scope:
+            Scope.delete_by_id(existing_scope.scope_id)
+    except Exception as e:
+        pass
+    
+    # Create a scope and policy for testing
+    scope = Scope.create(name=scope_name, description="Scope for testing get policy")
+    
+    policy_name = f"test_get_policy_{unique_id}"
     policy = Policy.create(
-        name="test_get_policy",
+        name=policy_name,
         conditions=json.dumps({"scopes": ["test:*"]}),
         scope_ids=[scope.scope_id]
     )
@@ -59,12 +87,15 @@ def test_get_policy(test_db, policy_engine):
     
     # Verify data
     assert policy_data["policy_id"] == policy.policy_id
-    assert policy_data["name"] == "test_get_policy"
+    assert policy_data["name"] == policy_name
     assert len(policy_data["scopes"]) == 1
     
     # Clean up
-    Policy.delete_by_id(policy.policy_id)
-    Scope.delete_by_id(scope.scope_id)
+    try:
+        Policy.delete_by_id(policy.policy_id)
+        Scope.delete_by_id(scope.scope_id)
+    except Exception as e:
+        print(f"Cleanup error (can be ignored): {str(e)}")
 
 def test_update_policy(test_db, policy_engine):
     """Test updating a policy using the refactored policy engine."""
@@ -112,34 +143,41 @@ def test_update_policy(test_db, policy_engine):
     assert len(updated_data["scopes"]) == 2
     
     # Verify database was updated
-    policy_db = Policy.query.get(policy.policy_id)
+    policy_db = Policy.query().get(policy.policy_id)
     assert policy_db.description == "Updated description"
     assert len(policy_db.scopes) == 2
     
     # Clean up
-    Policy.delete_by_id(policy.policy_id)
-    Scope.delete_by_id(scope1.scope_id)
-    Scope.delete_by_id(scope2.scope_id)
+    try:
+        Policy.delete_by_id(policy.policy_id)
+        Scope.delete_by_id(scope1.scope_id)
+        Scope.delete_by_id(scope2.scope_id)
+    except Exception as e:
+        print(f"Cleanup error (can be ignored): {str(e)}")
 
 def test_delete_policy(test_db, policy_engine):
     """Test deleting a policy using the refactored policy engine."""
+    # Create a unique policy name to avoid collisions
+    unique_id = str(uuid.uuid4())[:8]
+    policy_name = f"test_delete_policy_{unique_id}"
+    
     # Create a policy to delete
     policy = Policy.create(
-        name="test_delete_policy",
+        name=policy_name,
         description="Test policy for deletion",
         conditions=json.dumps({"test": True})
     )
     
     # Verify it exists first
     policy_id = policy.policy_id
-    found_policy = Policy.query.get(policy_id)
+    found_policy = Policy.query().get(policy_id)
     assert found_policy is not None
     
     # Delete the policy via engine
     policy_engine.delete_policy(policy_id)
     
     # Verify it's gone
-    found_policy = Policy.query.get(policy_id)
+    found_policy = Policy.query().get(policy_id)
     assert found_policy is None
 
 def test_policy_evaluation(test_db, policy_engine):
@@ -151,7 +189,7 @@ def test_policy_evaluation(test_db, policy_engine):
     
     # Clean up any existing test data
     try:
-        existing_policy = Policy.query.filter_by(name=policy_name).first()
+        existing_policy = Policy.query().filter_by(name=policy_name).first()
         if existing_policy:
             Policy.delete_by_id(existing_policy.policy_id)
     except Exception:
@@ -196,4 +234,7 @@ def test_policy_evaluation(test_db, policy_engine):
     assert policy_id not in result["matched"]
     
     # Clean up
-    Policy.delete_by_id(policy.policy_id)
+    try:
+        Policy.delete_by_id(policy.policy_id)
+    except Exception as e:
+        print(f"Cleanup error (can be ignored): {str(e)}")

@@ -53,8 +53,6 @@ def delegate_token(agent_id, user_token):
     """Request delegated token from user to agent."""
     print(f"Requesting delegated token for agent {agent_id}...")
     
-    use_mfa = False
-    
     token_response = client.delegate_token(
         client_id=agent_id,
         delegator_token=user_token,
